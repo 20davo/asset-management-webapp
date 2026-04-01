@@ -1,12 +1,16 @@
-﻿using AssetManagement.Api.Data;
-using AssetManagement.Api.Models;
+﻿using AssetManagement.Api.Constants;
+using AssetManagement.Api.Data;
+using AssetManagement.Api.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace AssetManagement.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CheckoutController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,21 +21,71 @@ namespace AssetManagement.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Checkout>>> GetAll()
+        [Authorize(Roles = UserRoles.Admin)]
+        public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetAll()
         {
             var checkouts = await _context.Checkouts
                 .Include(c => c.Equipment)
+                .Include(c => c.User)
+                .OrderByDescending(c => c.CheckedOutAt)
+                .Select(c => new CheckoutResponseDto
+                {
+                    Id = c.Id,
+                    CheckedOutAt = c.CheckedOutAt,
+                    DueAt = c.DueAt,
+                    ReturnedAt = c.ReturnedAt,
+                    Note = c.Note,
+                    Equipment = new CheckoutEquipmentDto
+                    {
+                        Id = c.Equipment!.Id,
+                        Name = c.Equipment.Name,
+                        Category = c.Equipment.Category,
+                        SerialNumber = c.Equipment.SerialNumber,
+                        Status = c.Equipment.Status
+                    },
+                    User = new CheckoutUserDto
+                    {
+                        Id = c.User!.Id,
+                        Name = c.User.Name,
+                        Email = c.User.Email
+                    }
+                })
                 .ToListAsync();
 
             return Ok(checkouts);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Checkout>> GetById(int id)
+        [Authorize(Roles = UserRoles.Admin)]
+        public async Task<ActionResult<CheckoutResponseDto>> GetById(int id)
         {
             var checkout = await _context.Checkouts
                 .Include(c => c.Equipment)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .Include(c => c.User)
+                .Where(c => c.Id == id)
+                .Select(c => new CheckoutResponseDto
+                {
+                    Id = c.Id,
+                    CheckedOutAt = c.CheckedOutAt,
+                    DueAt = c.DueAt,
+                    ReturnedAt = c.ReturnedAt,
+                    Note = c.Note,
+                    Equipment = new CheckoutEquipmentDto
+                    {
+                        Id = c.Equipment!.Id,
+                        Name = c.Equipment.Name,
+                        Category = c.Equipment.Category,
+                        SerialNumber = c.Equipment.SerialNumber,
+                        Status = c.Equipment.Status
+                    },
+                    User = new CheckoutUserDto
+                    {
+                        Id = c.User!.Id,
+                        Name = c.User.Name,
+                        Email = c.User.Email
+                    }
+                })
+                .FirstOrDefaultAsync();
 
             if (checkout == null)
             {
@@ -41,70 +95,46 @@ namespace AssetManagement.Api.Controllers
             return Ok(checkout);
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Checkout>> Create(Checkout checkout)
+        [HttpGet("my")]
+        public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetMyCheckouts()
         {
-            var equipmentExists = await _context.Equipments.AnyAsync(e => e.Id == checkout.EquipmentId);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (!equipmentExists)
+            if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return BadRequest("A megadott EquipmentId nem létezik.");
+                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
             }
 
-            _context.Checkouts.Add(checkout);
-            await _context.SaveChangesAsync();
+            var checkouts = await _context.Checkouts
+                .Include(c => c.Equipment)
+                .Include(c => c.User)
+                .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.CheckedOutAt)
+                .Select(c => new CheckoutResponseDto
+                {
+                    Id = c.Id,
+                    CheckedOutAt = c.CheckedOutAt,
+                    DueAt = c.DueAt,
+                    ReturnedAt = c.ReturnedAt,
+                    Note = c.Note,
+                    Equipment = new CheckoutEquipmentDto
+                    {
+                        Id = c.Equipment!.Id,
+                        Name = c.Equipment.Name,
+                        Category = c.Equipment.Category,
+                        SerialNumber = c.Equipment.SerialNumber,
+                        Status = c.Equipment.Status
+                    },
+                    User = new CheckoutUserDto
+                    {
+                        Id = c.User!.Id,
+                        Name = c.User.Name,
+                        Email = c.User.Email
+                    }
+                })
+                .ToListAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = checkout.Id }, checkout);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Checkout checkout)
-        {
-            if (id != checkout.Id)
-            {
-                return BadRequest("Az URL-ben lévő id és a bodyban lévő id nem egyezik.");
-            }
-
-            var existingCheckout = await _context.Checkouts.FindAsync(id);
-
-            if (existingCheckout == null)
-            {
-                return NotFound();
-            }
-
-            var equipmentExists = await _context.Equipments.AnyAsync(e => e.Id == checkout.EquipmentId);
-
-            if (!equipmentExists)
-            {
-                return BadRequest("A megadott EquipmentId nem létezik.");
-            }
-
-            existingCheckout.EquipmentId = checkout.EquipmentId;
-            existingCheckout.UserName = checkout.UserName;
-            existingCheckout.CheckedOutAt = checkout.CheckedOutAt;
-            existingCheckout.DueAt = checkout.DueAt;
-            existingCheckout.ReturnedAt = checkout.ReturnedAt;
-            existingCheckout.Note = checkout.Note;
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var checkout = await _context.Checkouts.FindAsync(id);
-
-            if (checkout == null)
-            {
-                return NotFound();
-            }
-
-            _context.Checkouts.Remove(checkout);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(checkouts);
         }
     }
 }

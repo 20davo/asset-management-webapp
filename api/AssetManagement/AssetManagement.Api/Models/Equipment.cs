@@ -1,5 +1,6 @@
-﻿namespace AssetManagement.Api.Models
-    using AssetManagement.Api.Constants;
+﻿using AssetManagement.Api.Constants;
+
+namespace AssetManagement.Api.Models
 {
     public class Equipment
     {

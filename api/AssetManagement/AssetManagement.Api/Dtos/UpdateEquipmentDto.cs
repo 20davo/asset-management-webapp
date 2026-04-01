@@ -18,9 +18,5 @@ namespace AssetManagement.Api.Dtos
         [Required]
         [StringLength(100)]
         public string SerialNumber { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(30)]
-        public string Status { get; set; } = string.Empty;
     }
 }

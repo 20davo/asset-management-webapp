@@ -3,6 +3,7 @@ using System;
 using AssetManagement.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AssetManagement.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260331153408_AddUser")]
+    partial class AddUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,14 +48,13 @@ namespace AssetManagement.Api.Migrations
                     b.Property<DateTime?>("ReturnedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EquipmentId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Checkouts");
                 });
@@ -135,23 +137,10 @@ namespace AssetManagement.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AssetManagement.Api.Models.User", "User")
-                        .WithMany("Checkouts")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Equipment");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AssetManagement.Api.Models.Equipment", b =>
-                {
-                    b.Navigation("Checkouts");
-                });
-
-            modelBuilder.Entity("AssetManagement.Api.Models.User", b =>
                 {
                     b.Navigation("Checkouts");
                 });
