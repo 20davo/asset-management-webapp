@@ -27,6 +27,7 @@ namespace AssetManagement.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            var normalizedName = dto.Name.Trim();
             var normalizedEmail = dto.Email.Trim().ToLower();
 
             var emailExists = await _context.Users
@@ -39,7 +40,7 @@ namespace AssetManagement.Api.Controllers
 
             var user = new User
             {
-                Name = dto.Name.Trim(),
+                Name = normalizedName,
                 Email = normalizedEmail,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 Role = UserRoles.User

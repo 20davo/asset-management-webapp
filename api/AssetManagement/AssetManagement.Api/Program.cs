@@ -1,10 +1,11 @@
-
 using System.Text;
 using AssetManagement.Api.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using AssetManagement.Api.Constants;
+using AssetManagement.Api.Models;
 
 namespace AssetManagement.Api
 {
@@ -75,6 +76,20 @@ namespace AssetManagement.Api
                 });
             });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    policy.WithOrigins(
+                            "http://localhost:5173",
+                            "https://localhost:5173",
+                            "http://localhost:3000",
+                            "https://localhost:3000")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             builder.Services.AddAuthorization();
 
             builder.Services.AddControllers();
@@ -82,6 +97,27 @@ namespace AssetManagement.Api
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var adminExists = context.Users.Any(u => u.Role == UserRoles.Admin);
+
+                if (!adminExists)
+                {
+                    var adminUser = new User
+                    {
+                        Name = "Admin",
+                        Email = "admin@assetmanagement.local",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+                        Role = UserRoles.Admin
+                    };
+
+                    context.Users.Add(adminUser);
+                    context.SaveChanges();
+                }
+            }
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -91,6 +127,8 @@ namespace AssetManagement.Api
             }
 
             app.UseHttpsRedirection();
+
+            app.UseCors("FrontendPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();

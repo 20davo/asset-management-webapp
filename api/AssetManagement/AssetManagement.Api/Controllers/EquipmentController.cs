@@ -22,10 +22,20 @@ namespace AssetManagement.Api.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<Equipment>>> GetAll()
+        public async Task<ActionResult<IEnumerable<EquipmentListItemDto>>> GetAll()
         {
             var equipments = await _context.Equipments
                 .OrderBy(e => e.Name)
+                .Select(e => new EquipmentListItemDto
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Category = e.Category,
+                    Description = e.Description,
+                    SerialNumber = e.SerialNumber,
+                    Status = e.Status,
+                    CreatedAt = e.CreatedAt
+                })
                 .ToListAsync();
 
             return Ok(equipments);
@@ -42,8 +52,11 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Az eszköz nem található." });
             }
+
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var isAdmin = roleClaim == UserRoles.Admin;
 
             var result = new EquipmentDetailsDto
             {
@@ -54,20 +67,22 @@ namespace AssetManagement.Api.Controllers
                 SerialNumber = equipment.SerialNumber,
                 Status = equipment.Status,
                 CreatedAt = equipment.CreatedAt,
-                Checkouts = equipment.Checkouts
-                    .OrderByDescending(c => c.CheckedOutAt)
-                    .Select(c => new CheckoutHistoryItemDto
-                    {
-                        Id = c.Id,
-                        CheckedOutAt = c.CheckedOutAt,
-                        DueAt = c.DueAt,
-                        ReturnedAt = c.ReturnedAt,
-                        Note = c.Note,
-                        UserId = c.UserId,
-                        UserName = c.User?.Name ?? string.Empty,
-                        UserEmail = c.User?.Email ?? string.Empty
-                    })
-                    .ToList()
+                Checkouts = isAdmin
+                    ? equipment.Checkouts
+                        .OrderByDescending(c => c.CheckedOutAt)
+                        .Select(c => new CheckoutHistoryItemDto
+                        {
+                            Id = c.Id,
+                            CheckedOutAt = c.CheckedOutAt,
+                            DueAt = c.DueAt,
+                            ReturnedAt = c.ReturnedAt,
+                            Note = c.Note,
+                            UserId = c.UserId,
+                            UserName = c.User?.Name ?? string.Empty,
+                            UserEmail = c.User?.Email ?? string.Empty
+                        })
+                        .ToList()
+                    : new List<CheckoutHistoryItemDto>()
             };
 
             return Ok(result);
@@ -75,10 +90,17 @@ namespace AssetManagement.Api.Controllers
 
         [HttpPost]
         [Authorize(Roles = UserRoles.Admin)]
-        public async Task<ActionResult<Equipment>> Create(CreateEquipmentDto dto)
+        public async Task<IActionResult> Create(CreateEquipmentDto dto)
         {
+            var normalizedName = dto.Name.Trim();
+            var normalizedCategory = dto.Category.Trim();
+            var normalizedSerialNumber = dto.SerialNumber.Trim();
+            var normalizedDescription = string.IsNullOrWhiteSpace(dto.Description)
+                ? null
+                : dto.Description.Trim();
+
             var serialExists = await _context.Equipments
-                .AnyAsync(e => e.SerialNumber == dto.SerialNumber);
+                .AnyAsync(e => e.SerialNumber == normalizedSerialNumber);
 
             if (serialExists)
             {
@@ -87,10 +109,10 @@ namespace AssetManagement.Api.Controllers
 
             var equipment = new Equipment
             {
-                Name = dto.Name,
-                Category = dto.Category,
-                Description = dto.Description,
-                SerialNumber = dto.SerialNumber,
+                Name = normalizedName,
+                Category = normalizedCategory,
+                Description = normalizedDescription,
+                SerialNumber = normalizedSerialNumber,
                 Status = EquipmentStatus.Available,
                 CreatedAt = DateTime.UtcNow
             };
@@ -98,36 +120,51 @@ namespace AssetManagement.Api.Controllers
             _context.Equipments.Add(equipment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = equipment.Id }, equipment);
+            return CreatedAtAction(nameof(GetById), new { id = equipment.Id }, new
+            {
+                message = "Az eszköz sikeresen létrehozva.",
+                data = equipment
+            });
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> Update(int id, UpdateEquipmentDto dto)
         {
+            var normalizedName = dto.Name.Trim();
+            var normalizedCategory = dto.Category.Trim();
+            var normalizedSerialNumber = dto.SerialNumber.Trim();
+            var normalizedDescription = string.IsNullOrWhiteSpace(dto.Description)
+                ? null
+                : dto.Description.Trim();
+
             var existingEquipment = await _context.Equipments.FindAsync(id);
 
             if (existingEquipment == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Az eszköz nem található." });
             }
 
             var serialExists = await _context.Equipments
-                .AnyAsync(e => e.SerialNumber == dto.SerialNumber && e.Id != id);
+                .AnyAsync(e => e.SerialNumber == normalizedSerialNumber && e.Id != id);
 
             if (serialExists)
             {
                 return BadRequest(new { message = "Már létezik másik eszköz ezzel a gyári számmal." });
             }
 
-            existingEquipment.Name = dto.Name;
-            existingEquipment.Category = dto.Category;
-            existingEquipment.Description = dto.Description;
-            existingEquipment.SerialNumber = dto.SerialNumber;
+            existingEquipment.Name = normalizedName;
+            existingEquipment.Category = normalizedCategory;
+            existingEquipment.Description = normalizedDescription;
+            existingEquipment.SerialNumber = normalizedSerialNumber;
 
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new
+            {
+                message = "Az eszköz sikeresen frissítve.",
+                equipmentId = existingEquipment.Id
+            });
         }
 
         [HttpDelete("{id}")]
@@ -138,7 +175,7 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Az eszköz nem található." });
             }
 
             var hasActiveCheckout = await _context.Checkouts
@@ -152,13 +189,21 @@ namespace AssetManagement.Api.Controllers
             _context.Equipments.Remove(equipment);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new
+            {
+                message = "Az eszköz sikeresen törölve.",
+                equipmentId = id
+            });
         }
 
         [HttpPost("{id}/checkout")]
         [Authorize]
         public async Task<IActionResult> CheckoutEquipment(int id, CreateCheckoutDto dto)
         {
+            var normalizedNote = string.IsNullOrWhiteSpace(dto.Note)
+                ? null
+                : dto.Note.Trim();
+
             var equipment = await _context.Equipments.FindAsync(id);
 
             if (equipment == null)
@@ -188,7 +233,7 @@ namespace AssetManagement.Api.Controllers
                 EquipmentId = equipment.Id,
                 UserId = userId,
                 DueAt = dto.DueAt,
-                Note = dto.Note,
+                Note = normalizedNote,
                 CheckedOutAt = DateTime.UtcNow
             };
 
@@ -247,7 +292,7 @@ namespace AssetManagement.Api.Controllers
 
             if (!string.IsNullOrWhiteSpace(dto.Note))
             {
-                activeCheckout.Note = dto.Note;
+                activeCheckout.Note = dto.Note.Trim();
             }
 
             equipment.Status = EquipmentStatus.Available;

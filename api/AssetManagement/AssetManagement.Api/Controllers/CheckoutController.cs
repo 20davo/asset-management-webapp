@@ -89,7 +89,7 @@ namespace AssetManagement.Api.Controllers
 
             if (checkout == null)
             {
-                return NotFound();
+                return NotFound(new { message = "A kikérés nem található." });
             }
 
             return Ok(checkout);
