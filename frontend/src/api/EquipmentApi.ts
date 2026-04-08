@@ -10,6 +10,28 @@ import type {
   UpdateEquipmentRequest,
 } from '../types/equipment'
 
+function buildEquipmentFormData(data: CreateEquipmentRequest | UpdateEquipmentRequest) {
+  const formData = new FormData()
+
+  formData.append('name', data.name)
+  formData.append('category', data.category)
+  formData.append('serialNumber', data.serialNumber)
+
+  if (data.description) {
+    formData.append('description', data.description)
+  }
+
+  if (data.image) {
+    formData.append('image', data.image)
+  }
+
+  if ('removeImage' in data && data.removeImage) {
+    formData.append('removeImage', 'true')
+  }
+
+  return formData
+}
+
 export async function getEquipments() {
   const response = await api.get<EquipmentListItem[]>('/equipment')
   return response.data
@@ -37,12 +59,18 @@ export async function returnEquipment(id: number, data: ReturnCheckoutRequest) {
 }
 
 export async function createEquipment(data: CreateEquipmentRequest) {
-  const response = await api.post<EquipmentMutationResponse>('/equipment', data)
+  const response = await api.post<EquipmentMutationResponse>(
+    '/equipment',
+    buildEquipmentFormData(data),
+  )
   return response.data
 }
 
 export async function updateEquipment(id: number, data: UpdateEquipmentRequest) {
-  const response = await api.put<EquipmentMutationResponse>(`/equipment/${id}`, data)
+  const response = await api.put<EquipmentMutationResponse>(
+    `/equipment/${id}`,
+    buildEquipmentFormData(data),
+  )
   return response.data
 }
 

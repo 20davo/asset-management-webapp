@@ -9,50 +9,14 @@ import {
   getStatusLabel,
   isCheckoutOverdue,
 } from '../utils/presentation'
-
-function getStatusBadgeClassLegacy(status: string) {
-  switch (status) {
-    case 'Available':
-      return 'status-badge status-badge--available'
-    case 'CheckedOut':
-      return 'status-badge status-badge--checkedout'
-    case 'Maintenance':
-      return 'status-badge status-badge--maintenance'
-    default:
-      return 'status-badge'
-  }
-}
-
-function getStatusLabelLegacy(status: string) {
-  switch (status) {
-    case 'Available':
-      return 'Elérhető'
-    case 'CheckedOut':
-      return 'Kikérve'
-    case 'Maintenance':
-      return 'Karbantartás'
-    default:
-      return status
-  }
-}
-
-function isOverdueLegacy(dueAt: string, returnedAt: string | null) {
-  if (returnedAt) {
-    return false
-  }
-
-  return new Date(dueAt).getTime() < Date.now()
-}
-
-void getStatusBadgeClassLegacy
-void getStatusLabelLegacy
-void isOverdueLegacy
+import { resolveAssetImageUrl } from '../utils/assetImages'
 
 function MyCheckoutsPage() {
   const { language, t } = useLanguage()
   const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [checkoutView, setCheckoutView] = useState<'cards' | 'list'>('list')
 
   useEffect(() => {
     async function loadCheckouts() {
@@ -77,6 +41,47 @@ function MyCheckoutsPage() {
     isCheckoutOverdue(checkout.dueAt, checkout.returnedAt),
   ).length
   const returnedCount = checkouts.filter((checkout) => !!checkout.returnedAt).length
+
+  function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
+    const resolvedImageUrl = resolveAssetImageUrl(imageUrl)
+
+    return (
+      <div className="equipment-card__media">
+        {resolvedImageUrl ? (
+          <img className="equipment-card__image" src={resolvedImageUrl} alt={name} />
+        ) : (
+          <div className="equipment-card__image-placeholder">
+            <span>{t.common.noImage}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function renderCheckoutViewSwitch() {
+    return (
+      <div className="view-switch" role="group" aria-label={t.common.view}>
+        <button
+          type="button"
+          className={`view-switch__button ${
+            checkoutView === 'cards' ? 'view-switch__button--active' : ''
+          }`}
+          onClick={() => setCheckoutView('cards')}
+        >
+          {t.common.cardsView}
+        </button>
+        <button
+          type="button"
+          className={`view-switch__button ${
+            checkoutView === 'list' ? 'view-switch__button--active' : ''
+          }`}
+          onClick={() => setCheckoutView('list')}
+        >
+          {t.common.listView}
+        </button>
+      </div>
+    )
+  }
 
   void isOverdue
 
@@ -135,188 +140,235 @@ function MyCheckoutsPage() {
           <h3>{t.checkouts.emptyTitle}</h3>
           <p>{t.checkouts.emptyText}</p>
         </div>
-      ) : (
-        <div className="equipment-list">
-          {checkouts.map((checkout) => {
-            const overdue = isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)
+      ) : checkoutView === 'list' ? (
+        <section className="inventory-stack">
+          <div className="section-heading section-heading--toolbar">
+            <div>
+              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
+              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+            </div>
+            <div className="section-heading__aside">
+              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              {renderCheckoutViewSwitch()}
+            </div>
+          </div>
 
-            return (
-              <article
-                key={checkout.id}
-                className={`equipment-card ${overdue ? 'equipment-card--overdue' : ''}`}
-              >
-                <div className="equipment-card__eyebrow">
-                  <span className="equipment-card__serial">
-                    SN {checkout.equipment.serialNumber}
-                  </span>
-                  <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                    {getStatusLabel(checkout.equipment.status, language)}
-                  </span>
-                </div>
+          <div className="data-list data-list--checkouts">
+            <div className="data-list__header">
+              <span className="data-list__heading">{t.common.asset}</span>
+              <span className="data-list__heading">{t.common.status}</span>
+              <span className="data-list__heading">{t.checkouts.checkedOutAt}</span>
+              <span className="data-list__heading">{t.checkouts.dueAt}</span>
+              <span className="data-list__heading">{t.checkouts.returnedAt}</span>
+              <span className="data-list__heading data-list__heading--actions">
+                {t.common.actions}
+              </span>
+            </div>
 
-                <div className="equipment-card__header">
-                  <div className="equipment-card__title-group">
-                    <h3 className="equipment-card__title-small">
-                      {checkout.equipment.name}
-                    </h3>
-                    <p className="equipment-card__subtitle">
-                      {checkout.equipment.category}
-                    </p>
+            {checkouts.map((checkout) => {
+              const overdue = isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)
+
+              return (
+                <article
+                  key={checkout.id}
+                  className={`data-list__row ${overdue ? 'data-list__row--overdue' : ''}`}
+                >
+                  <div className="data-list__cell data-list__cell--primary">
+                    <div className="data-list__asset">
+                      <div className="data-list__thumb">
+                        {resolveAssetImageUrl(checkout.equipment.imageUrl) ? (
+                          <img
+                            className="data-list__thumb-image"
+                            src={resolveAssetImageUrl(checkout.equipment.imageUrl) ?? undefined}
+                            alt={checkout.equipment.name}
+                          />
+                        ) : (
+                          <div className="data-list__thumb-placeholder">
+                            <span>{t.common.noImage}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="data-list__asset-copy">
+                        <strong className="data-list__primary-text">
+                          {checkout.equipment.name}
+                        </strong>
+                        <span className="data-list__secondary-text">
+                          {checkout.equipment.category} SN {checkout.equipment.serialNumber}
+                        </span>
+                        <span className="data-list__tertiary-text">
+                          {checkout.note || t.checkouts.noNote}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {overdue && (
-                    <span className="timeline-pill timeline-pill--danger">
-                      {t.checkouts.overdueBadge}
-                    </span>
-                  )}
-                </div>
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">{t.common.status}</span>
+                    <div className="data-list__status-stack">
+                      <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                        {getStatusLabel(checkout.equipment.status, language)}
+                      </span>
+                      {overdue && (
+                        <span className="timeline-pill timeline-pill--danger">
+                          {t.checkouts.overdueBadge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="equipment-meta">
-                  <div className="equipment-meta__item">
-                    <span className="equipment-meta__label">{t.checkouts.checkedOutAt}</span>
-                    <span className="equipment-meta__value">
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">
+                      {t.checkouts.checkedOutAt}
+                    </span>
+                    <span className="data-list__value">
                       {formatDateTime(checkout.checkedOutAt, language)}
                     </span>
                   </div>
 
-                  <div className="equipment-meta__item">
-                    <span className="equipment-meta__label">{t.checkouts.dueAt}</span>
-                    <span className="equipment-meta__value">
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">{t.checkouts.dueAt}</span>
+                    <span className="data-list__value">
                       {formatDateTime(checkout.dueAt, language)}
                     </span>
                   </div>
 
-                  <div className="equipment-meta__item">
-                    <span className="equipment-meta__label">{t.checkouts.returnedAt}</span>
-                    <span className="equipment-meta__value">
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">{t.checkouts.returnedAt}</span>
+                    <span className="data-list__value">
                       {checkout.returnedAt
                         ? formatDateTime(checkout.returnedAt, language)
                         : t.checkouts.notClosed}
                     </span>
                   </div>
-                </div>
 
-                {overdue && (
-                  <p className="form-error">
-                    {t.checkouts.overdueAlert}
-                  </p>
-                )}
-
-                {checkout.note && (
-                  <div className="equipment-description">
-                    <span className="equipment-description__label">{t.checkouts.note}</span>
-                    <p className="equipment-description__text">{checkout.note}</p>
+                  <div className="data-list__cell data-list__cell--actions">
+                    <Link
+                      to={`/equipment/${checkout.equipment.id}`}
+                      className="button-link button-secondary"
+                    >
+                      {t.checkouts.equipmentPage}
+                    </Link>
                   </div>
-                )}
-
-                <div className="equipment-card__actions">
-                  <Link
-                    to={`/equipment/${checkout.equipment.id}`}
-                    className="button-link button-secondary"
-                  >
-                    {t.checkouts.equipmentPage}
-                  </Link>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-
-  /*
-
-  if (isLoading) {
-    return <p>Kikérések betöltése...</p>
-  }
-
-  if (errorMessage) {
-    return <p className="form-error">{errorMessage}</p>
-  }
-
-  return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h2>My Checkouts</h2>
-          <p className="page-subtitle">A saját kikéréseid és határidejeik.</p>
-        </div>
-      </div>
-
-      {checkouts.length === 0 ? (
-        <p>Még nincs kikérésed.</p>
+                </article>
+              )
+            })}
+          </div>
+        </section>
       ) : (
-        <div className="equipment-list">
-          {checkouts.map((checkout) => {
-            const overdue = isOverdue(checkout.dueAt, checkout.returnedAt)
+        <section className="inventory-stack">
+          <div className="section-heading section-heading--toolbar">
+            <div>
+              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
+              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+            </div>
+            <div className="section-heading__aside">
+              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              {renderCheckoutViewSwitch()}
+            </div>
+          </div>
 
-            return (
-              <div
-                key={checkout.id}
-                className={`equipment-card ${overdue ? 'equipment-card--overdue' : ''}`}
-              >
-                <div className="equipment-card__header">
-                  <h3>{checkout.equipment.name}</h3>
-                  <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                    {getStatusLabel(checkout.equipment.status)}
-                  </span>
-                </div>
+          <div className="equipment-list">
+            {checkouts.map((checkout) => {
+              const overdue = isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)
 
-                <div className="equipment-meta">
-                  <p>
-                    <strong>Category:</strong> {checkout.equipment.category}
-                  </p>
+              return (
+                <article
+                  key={checkout.id}
+                  className={`equipment-card ${overdue ? 'equipment-card--overdue' : ''}`}
+                >
+                  <div className="equipment-card__layout">
+                    <div className="equipment-card__main">
+                      <div className="equipment-card__eyebrow">
+                        <span className="equipment-card__serial">
+                          SN {checkout.equipment.serialNumber}
+                        </span>
+                        <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                          {getStatusLabel(checkout.equipment.status, language)}
+                        </span>
+                      </div>
 
-                  <p>
-                    <strong>Serial number:</strong> {checkout.equipment.serialNumber}
-                  </p>
-                </div>
+                      <div className="equipment-card__header">
+                        <div className="equipment-card__title-group">
+                          <h3 className="equipment-card__title-small">
+                            {checkout.equipment.name}
+                          </h3>
+                          <p className="equipment-card__subtitle">
+                            {checkout.equipment.category}
+                          </p>
+                        </div>
 
-                <p>
-                  <strong>Checked out at:</strong>{' '}
-                  {new Date(checkout.checkedOutAt).toLocaleString()}
-                </p>
+                        {overdue && (
+                          <span className="timeline-pill timeline-pill--danger">
+                            {t.checkouts.overdueBadge}
+                          </span>
+                        )}
+                      </div>
 
-                <p>
-                  <strong>Due at:</strong> {new Date(checkout.dueAt).toLocaleString()}
-                </p>
+                      <div className="equipment-meta">
+                        <div className="equipment-meta__item">
+                          <span className="equipment-meta__label">
+                            {t.checkouts.checkedOutAt}
+                          </span>
+                          <span className="equipment-meta__value">
+                            {formatDateTime(checkout.checkedOutAt, language)}
+                          </span>
+                        </div>
 
-                <p>
-                  <strong>Returned at:</strong>{' '}
-                  {checkout.returnedAt
-                    ? new Date(checkout.returnedAt).toLocaleString()
-                    : 'Még nincs visszahozva'}
-                </p>
+                        <div className="equipment-meta__item">
+                          <span className="equipment-meta__label">{t.checkouts.dueAt}</span>
+                          <span className="equipment-meta__value">
+                            {formatDateTime(checkout.dueAt, language)}
+                          </span>
+                        </div>
 
-                {overdue && (
-                  <p className="form-error">
-                    Ez a kikérés lejárt, az eszközt vissza kell hozni.
-                  </p>
-                )}
+                        <div className="equipment-meta__item">
+                          <span className="equipment-meta__label">
+                            {t.checkouts.returnedAt}
+                          </span>
+                          <span className="equipment-meta__value">
+                            {checkout.returnedAt
+                              ? formatDateTime(checkout.returnedAt, language)
+                              : t.checkouts.notClosed}
+                          </span>
+                        </div>
+                      </div>
 
-                {checkout.note && (
-                  <p className="equipment-description">
-                    <strong>Note:</strong> {checkout.note}
-                  </p>
-                )}
+                      {overdue && <p className="form-error">{t.checkouts.overdueAlert}</p>}
 
-                <div className="equipment-card__actions">
-                  <Link
-                    to={`/equipment/${checkout.equipment.id}`}
-                    className="button-link"
-                  >
-                    Eszköz adatlap
-                  </Link>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                      {checkout.note && (
+                        <div className="equipment-description">
+                          <span className="equipment-description__label">
+                            {t.checkouts.note}
+                          </span>
+                          <p className="equipment-description__text">{checkout.note}</p>
+                        </div>
+                      )}
+
+                      <div className="equipment-card__actions">
+                        <Link
+                          to={`/equipment/${checkout.equipment.id}`}
+                          className="button-link button-secondary button-checkout-action button-checkout-action--list"
+                        >
+                          {t.checkouts.equipmentPage}
+                        </Link>
+                      </div>
+                    </div>
+
+                    {renderEquipmentMedia(
+                      checkout.equipment.imageUrl,
+                      checkout.equipment.name,
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
       )}
     </div>
   )
-  */
+
 }
 
 export default MyCheckoutsPage

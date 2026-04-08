@@ -15,6 +15,8 @@ namespace AssetManagement.Api.Dtos
         [StringLength(500)]
         public string? Description { get; set; }
 
+        public Microsoft.AspNetCore.Http.IFormFile? Image { get; set; }
+
         [Required]
         [StringLength(100)]
         public string SerialNumber { get; set; } = string.Empty;

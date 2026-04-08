@@ -40,6 +40,7 @@ namespace AssetManagement.Api.Controllers
                         Id = c.Equipment!.Id,
                         Name = c.Equipment.Name,
                         Category = c.Equipment.Category,
+                        ImageUrl = c.Equipment.ImageUrl,
                         SerialNumber = c.Equipment.SerialNumber,
                         Status = c.Equipment.Status
                     },
@@ -75,6 +76,7 @@ namespace AssetManagement.Api.Controllers
                         Id = c.Equipment!.Id,
                         Name = c.Equipment.Name,
                         Category = c.Equipment.Category,
+                        ImageUrl = c.Equipment.ImageUrl,
                         SerialNumber = c.Equipment.SerialNumber,
                         Status = c.Equipment.Status
                     },
@@ -122,6 +124,7 @@ namespace AssetManagement.Api.Controllers
                         Id = c.Equipment!.Id,
                         Name = c.Equipment.Name,
                         Category = c.Equipment.Category,
+                        ImageUrl = c.Equipment.ImageUrl,
                         SerialNumber = c.Equipment.SerialNumber,
                         Status = c.Equipment.Status
                     },

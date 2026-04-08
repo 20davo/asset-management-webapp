@@ -1,4 +1,5 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using AssetManagement.Api.Constants;
@@ -24,11 +25,31 @@ namespace AssetManagement.Api.Controllers
             _configuration = configuration;
         }
 
+        private static bool IsValidEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return false;
+            }
+
+            if (!MailAddress.TryCreate(email, out var parsedAddress))
+            {
+                return false;
+            }
+
+            return parsedAddress.Address == email && parsedAddress.Host.Contains('.');
+        }
+
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
             var normalizedName = dto.Name.Trim();
             var normalizedEmail = dto.Email.Trim().ToLower();
+
+            if (!IsValidEmail(normalizedEmail))
+            {
+                return BadRequest(new { message = "Csak érvényes email címmel lehet regisztrálni." });
+            }
 
             var emailExists = await _context.Users
                 .AnyAsync(u => u.Email == normalizedEmail);

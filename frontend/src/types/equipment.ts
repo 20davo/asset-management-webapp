@@ -3,9 +3,12 @@ export interface EquipmentListItem {
   name: string
   category: string
   description: string | null
+  imageUrl: string | null
   serialNumber: string
   status: string
   createdAt: string
+  activeCheckoutUserName: string | null
+  maintenanceByUserName: string | null
 }
 
 export interface CheckoutHistoryItem {
@@ -24,9 +27,16 @@ export interface EquipmentDetails {
   name: string
   category: string
   description: string | null
+  imageUrl: string | null
   serialNumber: string
   status: string
   createdAt: string
+  totalCheckoutCount: number
+  lastCheckedOutAt: string | null
+  activeCheckoutDueAt: string | null
+  activeCheckoutUserName: string | null
+  canReturn: boolean
+  isCheckedOutByCurrentUser: boolean
   checkouts: CheckoutHistoryItem[]
 }
 
@@ -49,6 +59,7 @@ export interface CreateEquipmentRequest {
   name: string
   category: string
   description?: string
+  image?: File | null
   serialNumber: string
 }
 
@@ -56,6 +67,8 @@ export interface UpdateEquipmentRequest {
   name: string
   category: string
   description?: string
+  image?: File | null
+  removeImage?: boolean
   serialNumber: string
 }
 

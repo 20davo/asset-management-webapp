@@ -2,6 +2,7 @@ export interface CheckoutEquipment {
   id: number
   name: string
   category: string
+  imageUrl: string | null
   serialNumber: string
   status: string
 }

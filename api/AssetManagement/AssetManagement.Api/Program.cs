@@ -98,6 +98,15 @@ namespace AssetManagement.Api
 
             var app = builder.Build();
 
+            var webRootPath = app.Environment.WebRootPath;
+
+            if (string.IsNullOrWhiteSpace(webRootPath))
+            {
+                webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+            }
+
+            Directory.CreateDirectory(Path.Combine(webRootPath, "uploads", "equipment"));
+
             using (var scope = app.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -127,6 +136,7 @@ namespace AssetManagement.Api
             }
 
             app.UseHttpsRedirection();
+            app.UseStaticFiles();
 
             app.UseCors("FrontendPolicy");
 

@@ -6,7 +6,7 @@ import {
   markEquipmentAvailable,
   markEquipmentMaintenance,
   returnEquipment,
-} from '../api/EquipmentApi'
+} from '../api/equipmentApi'
 import { useAuth } from '../context/AuthContext'
 import type { EquipmentDetails } from '../types/equipment'
 import {
@@ -16,6 +16,7 @@ import {
   getStatusLabel,
 } from '../utils/presentation'
 import { useLanguage } from '../context/LanguageContext'
+import { resolveAssetImageUrl } from '../utils/assetImages'
 
 function formatDateTimeLocal(date: Date) {
   const year = date.getFullYear()
@@ -27,34 +28,6 @@ function formatDateTimeLocal(date: Date) {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-function getStatusBadgeClassLegacy(status: string) {
-  switch (status) {
-    case 'Available':
-      return 'status-badge status-badge--available'
-    case 'CheckedOut':
-      return 'status-badge status-badge--checkedout'
-    case 'Maintenance':
-      return 'status-badge status-badge--maintenance'
-    default:
-      return 'status-badge'
-  }
-}
-
-function getStatusLabelLegacy(status: string) {
-  switch (status) {
-    case 'Available':
-      return 'Elérhető'
-    case 'CheckedOut':
-      return 'Kikérve'
-    case 'Maintenance':
-      return 'Karbantartás'
-    default:
-      return status
-  }
-}
-
-void getStatusBadgeClassLegacy
-void getStatusLabelLegacy
 
 function EquipmentDetailsPage() {
   const { id } = useParams()
@@ -215,9 +188,31 @@ function EquipmentDetailsPage() {
 
   const isAdminUser = user?.role === 'Admin'
   const canCheckoutNow = equipment.status === 'Available'
-  const canReturnNow = equipment.status === 'CheckedOut'
+  const canReturnNow = equipment.canReturn
   const latestCheckoutEntry = equipment.checkouts[0]
   const activeCheckoutEntry = equipment.checkouts.find((checkout) => !checkout.returnedAt)
+  const activeCheckoutUserName =
+    activeCheckoutEntry?.userName ?? equipment.activeCheckoutUserName ?? null
+  const activeCheckoutDueAt =
+    activeCheckoutEntry?.dueAt ?? equipment.activeCheckoutDueAt ?? null
+  const lastMovementAt =
+    latestCheckoutEntry?.checkedOutAt ?? equipment.lastCheckedOutAt ?? null
+
+  function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
+    const resolvedImageUrl = resolveAssetImageUrl(imageUrl)
+
+    return (
+      <div className="equipment-card__media">
+        {resolvedImageUrl ? (
+          <img className="equipment-card__image" src={resolvedImageUrl} alt={name} />
+        ) : (
+          <div className="equipment-card__image-placeholder">
+            <span>{t.common.noImage}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="equipment-details-page">
@@ -232,7 +227,7 @@ function EquipmentDetailsPage() {
         <div className="page-hero__content">
           <span className="page-kicker">{t.details.heroKicker}</span>
           <h1 className="page-title">{equipment.name}</h1>
-          <p className="page-subtitle">{`${equipment.category} • ${t.details.heroText}`}</p>
+          <p className="page-subtitle">{`${equipment.category} - ${t.details.heroText}`}</p>
         </div>
 
         <div className="page-hero__panel">
@@ -249,29 +244,29 @@ function EquipmentDetailsPage() {
       <section className="stats-grid stats-grid--three">
         <article className="stat-card">
           <span className="stat-card__label">{t.details.totalCheckouts}</span>
-          <strong className="stat-card__value">{equipment.checkouts.length}</strong>
+          <strong className="stat-card__value">{equipment.totalCheckoutCount}</strong>
           <span className="stat-card__note">{t.details.totalCheckoutsNote}</span>
         </article>
         <article className="stat-card">
           <span className="stat-card__label">{t.details.activeUser}</span>
           <strong className="stat-card__value">
-            {activeCheckoutEntry ? activeCheckoutEntry.userName : t.details.free}
+            {activeCheckoutUserName ? activeCheckoutUserName : t.details.free}
           </strong>
           <span className="stat-card__note">
-            {activeCheckoutEntry
-              ? `${t.details.deadlinePrefix}: ${formatDateTime(activeCheckoutEntry.dueAt, language)}`
+            {activeCheckoutDueAt
+              ? `${t.details.deadlinePrefix}: ${formatDateTime(activeCheckoutDueAt, language)}`
               : t.details.notIssued}
           </span>
         </article>
         <article className="stat-card">
           <span className="stat-card__label">{t.details.lastMovement}</span>
           <strong className="stat-card__value">
-            {latestCheckoutEntry
-              ? formatDate(latestCheckoutEntry.checkedOutAt, language)
+            {lastMovementAt
+              ? formatDate(lastMovementAt, language)
               : t.details.noHistory}
           </strong>
           <span className="stat-card__note">
-            {latestCheckoutEntry ? t.details.latestEvent : t.details.noHistoryNote}
+            {lastMovementAt ? t.details.latestEvent : t.details.noHistoryNote}
           </span>
         </article>
       </section>
@@ -307,6 +302,11 @@ function EquipmentDetailsPage() {
                   {formatDateTime(equipment.createdAt, language)}
                 </span>
               </div>
+            </div>
+
+            <div className="asset-image-field">
+              <span className="asset-image-field__label">{t.common.image}</span>
+              {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
             </div>
 
             {equipment.description && (
@@ -389,7 +389,7 @@ function EquipmentDetailsPage() {
                 <div className="form-actions">
                   <button
                     type="submit"
-                    className="form-submit form-submit--full"
+                    className="form-submit"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? t.common.saveInProgress : t.details.checkoutSubmit}
@@ -521,14 +521,14 @@ function EquipmentDetailsPage() {
               <div className="info-stack__item">
                 <span className="info-stack__label">{t.details.activeUserLabel}</span>
                 <strong>
-                  {activeCheckoutEntry ? activeCheckoutEntry.userName : t.details.unassigned}
+                  {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
                 </strong>
               </div>
               <div className="info-stack__item">
                 <span className="info-stack__label">{t.details.lastEvent}</span>
                 <strong>
-                  {latestCheckoutEntry
-                    ? formatDateTime(latestCheckoutEntry.checkedOutAt, language)
+                  {lastMovementAt
+                    ? formatDateTime(lastMovementAt, language)
                     : t.details.noHistoryNote}
                 </strong>
               </div>
@@ -563,225 +563,6 @@ function EquipmentDetailsPage() {
     </div>
   )
 
-  /*
-
-  if (isLoading) {
-    return <p>Eszköz adatlap betöltése...</p>
-  }
-
-  if (errorMessage && !equipment) {
-    return <p className="form-error">{errorMessage}</p>
-  }
-
-  if (!equipment) {
-    return <p className="form-error">Az eszköz nem található.</p>
-  }
-
-  const isAdmin = user?.role === 'Admin'
-  const canCheckout = equipment.status === 'Available'
-  const canReturn = equipment.status === 'CheckedOut'
-
-  return (
-    <div className="equipment-details-page">
-      <Link to="/" className="back-link">
-        ← Vissza a listához
-      </Link>
-
-      {errorMessage && <p className="form-error">{errorMessage}</p>}
-      {successMessage && <p className="form-success">{successMessage}</p>}
-
-      <div className="details-layout">
-        <div className="details-main">
-          <div className="equipment-card">
-            <div className="equipment-card__header">
-              <div className="equipment-card__title-group">
-                <h2 className="equipment-card__title">{equipment.name}</h2>
-                <p className="equipment-card__subtitle">
-                  Eszköz adatlap
-                </p>
-              </div>
-
-              <span className={getStatusBadgeClass(equipment.status)}>
-                {getStatusLabel(equipment.status)}
-              </span>
-            </div>
-
-            <div className="equipment-meta">
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">Kategória</span>
-                <span className="equipment-meta__value">{equipment.category}</span>
-              </div>
-
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">Gyári szám</span>
-                <span className="equipment-meta__value">{equipment.serialNumber}</span>
-              </div>
-
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">Létrehozva</span>
-                <span className="equipment-meta__value">
-                  {new Date(equipment.createdAt).toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            {equipment.description && (
-              <div className="equipment-description">
-                <span className="equipment-description__label">Leírás</span>
-                <p className="equipment-description__text">
-                  {equipment.description}
-                </p>
-              </div>
-            )}
-
-            {isAdmin && (
-              <div className="equipment-card__actions">
-                {equipment.status === 'Available' && (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={handleMarkMaintenance}
-                    disabled={isStatusSubmitting}
-                  >
-                    {isStatusSubmitting ? 'Mentés...' : 'Karbantartás alá helyezés'}
-                  </button>
-                )}
-
-                {equipment.status === 'Maintenance' && (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={handleMarkAvailable}
-                    disabled={isStatusSubmitting}
-                  >
-                    {isStatusSubmitting ? 'Mentés...' : 'Elérhetővé tesz'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {canCheckout && (
-            <div className="section-card form-section">
-              <h3>Eszköz kikérése</h3>
-
-              <form className="auth-form" onSubmit={handleCheckoutSubmit}>
-                <div className="form-field">
-                  <label htmlFor="dueAt">Határidő</label>
-                  <input
-                    id="dueAt"
-                    type="datetime-local"
-                    value={checkoutForm.dueAt}
-                    onChange={(event) =>
-                      setCheckoutForm((prev) => ({
-                        ...prev,
-                        dueAt: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="checkoutNote">Megjegyzés</label>
-                  <input
-                    id="checkoutNote"
-                    type="text"
-                    value={checkoutForm.note}
-                    onChange={(event) =>
-                      setCheckoutForm((prev) => ({
-                        ...prev,
-                        note: event.target.value,
-                      }))
-                    }
-                    placeholder="Opcionális megjegyzés"
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    type="submit"
-                    className="form-submit form-submit--full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Mentés...' : 'Kikérem az eszközt'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {canReturn && (
-            <div className="section-card form-section">
-              <h3>Eszköz visszahozása</h3>
-
-              <form className="auth-form" onSubmit={handleReturnSubmit}>
-                <div className="form-field">
-                  <label htmlFor="returnNote">Megjegyzés</label>
-                  <input
-                    id="returnNote"
-                    type="text"
-                    value={returnNote}
-                    onChange={(event) => setReturnNote(event.target.value)}
-                    placeholder="Opcionális megjegyzés"
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    type="submit"
-                    className="form-submit"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Mentés...' : 'Visszahozom az eszközt'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {isAdmin && (
-            <div className="section-card">
-              <h3>Checkout history</h3>
-
-              {equipment.checkouts.length === 0 ? (
-                <p>Még nincs checkout előzmény.</p>
-              ) : (
-                <div className="checkout-history-list">
-                  {equipment.checkouts.map((checkout) => (
-                    <div key={checkout.id} className="checkout-history-item">
-                      <p>
-                        <strong>User:</strong> {checkout.userName} ({checkout.userEmail})
-                      </p>
-                      <p>
-                        <strong>Checked out at:</strong>{' '}
-                        {new Date(checkout.checkedOutAt).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Due at:</strong> {new Date(checkout.dueAt).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Returned at:</strong>{' '}
-                        {checkout.returnedAt
-                          ? new Date(checkout.returnedAt).toLocaleString()
-                          : 'Még nincs visszahozva'}
-                      </p>
-                      {checkout.note && (
-                        <p>
-                          <strong>Note:</strong> {checkout.note}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-  */
 }
 
 export default EquipmentDetailsPage

@@ -15,6 +15,7 @@ function LoginPage() {
 
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target
@@ -34,10 +35,7 @@ function LoginPage() {
       await login(formData)
       navigate('/')
     } catch (error: any) {
-      const apiMessage =
-        error?.response?.data?.message || 'Sikertelen bejelentkezés.'
-
-      setErrorMessage(apiMessage)
+      setErrorMessage(error?.response?.data?.message || t.auth.loginError)
     } finally {
       setIsSubmitting(false)
     }
@@ -93,15 +91,80 @@ function LoginPage() {
 
           <div className="form-field">
             <label htmlFor="password">{t.auth.password}</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder={t.auth.passwordPlaceholder}
-              required
-            />
+            <div className="password-input">
+              <input
+                id="password"
+                name="password"
+                type={isPasswordVisible ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder={t.auth.passwordPlaceholder}
+                required
+              />
+              <button
+                type="button"
+                className="password-input__toggle"
+                onClick={() => setIsPasswordVisible((prev) => !prev)}
+                aria-label={
+                  isPasswordVisible ? t.auth.hidePassword : t.auth.showPassword
+                }
+                title={isPasswordVisible ? t.auth.hidePassword : t.auth.showPassword}
+              >
+                {isPasswordVisible ? (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M8 10V7.8a4 4 0 1 1 8 0V10"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M7.5 10h9a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 16.5 19h-9A1.5 1.5 0 0 1 6 17.5v-6A1.5 1.5 0 0 1 7.5 10Z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M13.2 13.8 18.8 8.2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="m16.7 7.5 2.1-.2-.2 2.1"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M8 10V7.8a4 4 0 1 1 8 0V10"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M7.5 10h9a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 16.5 19h-9A1.5 1.5 0 0 1 6 17.5v-6A1.5 1.5 0 0 1 7.5 10Z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <circle cx="12" cy="14.5" r="1.2" fill="currentColor" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {errorMessage && <p className="form-error">{errorMessage}</p>}

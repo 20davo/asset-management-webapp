@@ -30,6 +30,12 @@ namespace AssetManagement.Api.Data
                 .WithMany(u => u.Checkouts)
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Equipment>()
+                .HasOne(e => e.MaintenanceByUser)
+                .WithMany()
+                .HasForeignKey(e => e.MaintenanceByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }
