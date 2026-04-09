@@ -1,0 +1,13 @@
+# Installed dependencies are recreated inside the container.
+node_modules/
+
+# Local build output should not be copied into the Docker build context.
+dist/
+
+# Local environment files may contain machine-specific values.
+.env.local
+.env.development.local
+.env.production.local
+
+# Tooling and editor noise.
+.DS_Store

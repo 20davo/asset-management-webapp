@@ -1,0 +1,11 @@
+# Build output folders created locally by dotnet build/publish.
+bin/
+obj/
+
+# Local developer-specific files that should not be baked into the image.
+appsettings.Development.json
+*.user
+*.http
+
+# Uploaded files should stay on a mounted volume, not inside the image.
+wwwroot/uploads/

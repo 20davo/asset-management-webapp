@@ -1,5 +1,6 @@
 using System.Text;
 using AssetManagement.Api.Data;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -21,6 +22,15 @@ namespace AssetManagement.Api
             var jwtKey = builder.Configuration["Jwt:Key"];
             var jwtIssuer = builder.Configuration["Jwt:Issuer"];
             var jwtAudience = builder.Configuration["Jwt:Audience"];
+            var configuredDataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+            var dataProtectionKeysPath = string.IsNullOrWhiteSpace(configuredDataProtectionKeysPath)
+                ? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys")
+                : configuredDataProtectionKeysPath;
+
+            Directory.CreateDirectory(dataProtectionKeysPath);
+
+            builder.Services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 
             builder.Services.AddAuthentication(options =>
             {
@@ -42,6 +52,7 @@ namespace AssetManagement.Api
                 };
             });
 
+            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo
@@ -76,15 +87,23 @@ namespace AssetManagement.Api
                 });
             });
 
+            var allowedOrigins = builder.Configuration
+                .GetSection("Cors:AllowedOrigins")
+                .Get<string[]>()?
+                .Where(origin => !string.IsNullOrWhiteSpace(origin))
+                .ToArray() ?? Array.Empty<string>();
+
+            if (allowedOrigins.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "At least one CORS origin must be configured in Cors:AllowedOrigins.");
+            }
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("FrontendPolicy", policy =>
                 {
-                    policy.WithOrigins(
-                            "http://localhost:5173",
-                            "https://localhost:5173",
-                            "http://localhost:3000",
-                            "https://localhost:3000")
+                    policy.WithOrigins(allowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
@@ -94,7 +113,6 @@ namespace AssetManagement.Api
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
             var app = builder.Build();
 
@@ -110,6 +128,8 @@ namespace AssetManagement.Api
             using (var scope = app.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                context.Database.Migrate();
 
                 var adminExists = context.Users.Any(u => u.Role == UserRoles.Admin);
 
@@ -135,7 +155,13 @@ namespace AssetManagement.Api
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            var httpsRedirectEnabled = builder.Configuration.GetValue<bool>("HttpsRedirection:Enabled");
+
+            if (httpsRedirectEnabled)
+            {
+                app.UseHttpsRedirection();
+            }
+
             app.UseStaticFiles();
 
             app.UseCors("FrontendPolicy");
