@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL_PROD:-/api}
+        VITE_REGISTRATION_ENABLED: ${VITE_REGISTRATION_ENABLED_PROD:-false}
     environment: !override {}
     ports: !override
       - "${FRONTEND_PROD_PORT:-8080}:80"
@@ -16,6 +17,10 @@ services:
       ForwardedHeaders__Enabled: ${FORWARDED_HEADERS_ENABLED_PROD:-true}
       Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0_PROD:-http://localhost:8080}
       Cors__AllowedOrigins__1: ${CORS_ALLOWED_ORIGIN_1_PROD:-https://localhost:8080}
+      Registration__Enabled: ${REGISTRATION_ENABLED_PROD:-false}
+      RateLimiting__AuthEnabled: ${AUTH_RATE_LIMIT_ENABLED_PROD:-true}
+      RateLimiting__AuthPermitLimit: ${AUTH_RATE_LIMIT_PERMIT_LIMIT_PROD:-5}
+      RateLimiting__AuthWindowSeconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS_PROD:-60}
       BootstrapAdmin__Enabled: ${BOOTSTRAP_ADMIN_ENABLED_PROD:-false}
 
   db:

@@ -5,6 +5,7 @@ const DEFAULT_API_BASE_URL = 'http://localhost:5071/api'
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const absoluteUrlPattern = /^https?:\/\//i
 let unauthorizedHandler: (() => void) | null = null
+let forbiddenHandler: (() => void) | null = null
 
 export const API_BASE_URL = (
   configuredApiBaseUrl && configuredApiBaseUrl.length > 0
@@ -42,6 +43,18 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler
 }
 
+function handleForbiddenResponse(url: string | undefined) {
+  if (!getToken() || isAuthRequest(url)) {
+    return
+  }
+
+  forbiddenHandler?.()
+}
+
+export function setForbiddenHandler(handler: (() => void) | null) {
+  forbiddenHandler = handler
+}
+
 api.interceptors.request.use((config) => {
   const token = getToken()
 
@@ -55,13 +68,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      handleUnauthorizedResponse(error.config?.url)
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        handleUnauthorizedResponse(error.config?.url)
+      }
+
+      if (error.response?.status === 403) {
+        handleForbiddenResponse(error.config?.url)
+      }
     }
 
     return Promise.reject(error)
   },
 )
 
-export { handleUnauthorizedResponse }
+export { handleForbiddenResponse, handleUnauthorizedResponse }
 export default api

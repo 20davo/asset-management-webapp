@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import { useLanguage } from './context/LanguageContext'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
 import EquipmentDetailsPage from './pages/EquipmentDetailsPage'
@@ -9,6 +10,7 @@ import LoginPage from './pages/LoginPage'
 import MyCheckoutsPage from './pages/MyCheckoutsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RegisterPage from './pages/RegisterPage'
+import { REGISTRATION_ENABLED } from './config/runtime'
 
 interface AuthPageRouteProps {
   children: ReactNode
@@ -29,6 +31,24 @@ function AuthPageRoute({ children }: AuthPageRouteProps) {
   }
 
   return children
+}
+
+function AppNotice() {
+  const location = useLocation()
+  const { language } = useLanguage()
+  const reason = new URLSearchParams(location.search).get('reason')
+
+  if (reason !== 'forbidden') {
+    return null
+  }
+
+  return (
+    <p className="form-error">
+      {language === 'en'
+        ? 'You do not have permission to access that action or page.'
+        : 'Nincs jogosultságod az adott oldal vagy művelet eléréséhez.'}
+    </p>
+  )
 }
 
 function AppRoutes() {
@@ -80,7 +100,7 @@ function AppRoutes() {
         path="/register"
         element={
           <AuthPageRoute>
-            <RegisterPage />
+            {REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/" replace />}
           </AuthPageRoute>
         }
       />
@@ -99,6 +119,7 @@ function App() {
         <Navbar />
 
         <main className="app">
+          <AppNotice />
           <AppRoutes />
         </main>
       </div>

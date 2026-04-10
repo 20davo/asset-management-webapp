@@ -1,8 +1,10 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AssetManagement.Api.Data;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -29,6 +31,9 @@ namespace AssetManagement.Api
             var dataProtectionKeysPath = string.IsNullOrWhiteSpace(configuredDataProtectionKeysPath)
                 ? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys")
                 : configuredDataProtectionKeysPath;
+            var authRateLimitEnabled = builder.Configuration.GetValue<bool>("RateLimiting:AuthEnabled");
+            var authRateLimitPermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 5);
+            var authRateLimitWindowSeconds = builder.Configuration.GetValue("RateLimiting:AuthWindowSeconds", 60);
 
             if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey == JwtPlaceholderValue)
             {
@@ -119,6 +124,43 @@ namespace AssetManagement.Api
             });
 
             builder.Services.AddAuthorization();
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    context.HttpContext.Response.ContentType = "application/json";
+
+                    var message = context.HttpContext.Request.Path.StartsWithSegments("/api/auth/login")
+                        ? "Túl sok bejelentkezési próbálkozás. Próbald újra később."
+                        : "Túl sok kérés. Próbáld újra később.";
+
+                    await context.HttpContext.Response.WriteAsJsonAsync(
+                        new { message },
+                        cancellationToken: cancellationToken);
+                };
+
+                options.AddPolicy("AuthPolicy", httpContext =>
+                {
+                    if (!authRateLimitEnabled)
+                    {
+                        return RateLimitPartition.GetNoLimiter("auth-policy-disabled");
+                    }
+
+                    var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                    var path = httpContext.Request.Path.ToString().ToLowerInvariant();
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        $"{path}:{remoteIp}",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = authRateLimitPermitLimit,
+                            Window = TimeSpan.FromSeconds(authRateLimitWindowSeconds),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        });
+                });
+            });
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -209,6 +251,7 @@ namespace AssetManagement.Api
 
             app.UseCors("FrontendPolicy");
 
+            app.UseRateLimiter();
             app.UseAuthentication();
             app.UseAuthorization();
 

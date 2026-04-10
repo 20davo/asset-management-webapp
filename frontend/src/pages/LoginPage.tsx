@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { REGISTRATION_ENABLED } from '../config/runtime'
 import { useLanguage } from '../context/LanguageContext'
 
 function LoginPage() {
@@ -100,6 +101,7 @@ function LoginPage() {
               id="email"
               name="email"
               type="email"
+              autoComplete="username"
               value={formData.email}
               onChange={handleChange}
               placeholder={t.auth.emailPlaceholder}
@@ -114,6 +116,7 @@ function LoginPage() {
                 id="password"
                 name="password"
                 type={isPasswordVisible ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder={t.auth.passwordPlaceholder}
@@ -196,9 +199,11 @@ function LoginPage() {
           </button>
         </form>
 
-        <p className="auth-page__footer">
-          {t.auth.noAccount} <Link to="/register">{t.auth.registerHere}</Link>
-        </p>
+        {REGISTRATION_ENABLED && (
+          <p className="auth-page__footer">
+            {t.auth.noAccount} <Link to="/register">{t.auth.registerHere}</Link>
+          </p>
+        )}
       </section>
     </div>
   )

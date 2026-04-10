@@ -7,6 +7,7 @@ using AssetManagement.Api.Data;
 using AssetManagement.Api.Dtos;
 using AssetManagement.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -43,6 +44,14 @@ namespace AssetManagement.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            if (!_configuration.GetValue<bool>("Registration:Enabled"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    message = "Az új felhasználói regisztráció ebben a környezetben le van tiltva."
+                });
+            }
+
             var normalizedName = dto.Name.Trim();
             var normalizedEmail = dto.Email.Trim().ToLower();
 
@@ -77,6 +86,7 @@ namespace AssetManagement.Api.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("AuthPolicy")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
             var normalizedEmail = dto.Email.Trim().ToLower();

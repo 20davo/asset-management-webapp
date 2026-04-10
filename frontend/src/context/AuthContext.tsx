@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { login as loginRequest } from '../api/authApi'
 import type { AuthUser, LoginRequest } from '../types/auth'
-import { setUnauthorizedHandler } from '../api/axios'
+import { setForbiddenHandler, setUnauthorizedHandler } from '../api/axios'
 import {
   getStoredUser,
   getToken,
@@ -74,6 +74,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUnauthorizedHandler(null)
     }
   }, [clearSession])
+
+  useEffect(() => {
+    setForbiddenHandler(() => {
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      window.location.replace('/?reason=forbidden')
+    })
+
+    return () => {
+      setForbiddenHandler(null)
+    }
+  }, [])
 
   const value = useMemo(
     () => ({

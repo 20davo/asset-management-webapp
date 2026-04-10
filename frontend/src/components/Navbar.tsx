@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { REGISTRATION_ENABLED } from '../config/runtime'
 import { useLanguage } from '../context/LanguageContext'
 import { getRoleLabel } from '../utils/presentation'
 
@@ -43,7 +44,7 @@ function Navbar() {
               </NavLink>
             )}
 
-            {!isAuthenticated && (
+            {!isAuthenticated && REGISTRATION_ENABLED && (
               <NavLink
                 to="/login"
                 className={({ isActive }) =>
@@ -54,7 +55,7 @@ function Navbar() {
               </NavLink>
             )}
 
-            {!isAuthenticated && (
+            {!isAuthenticated && REGISTRATION_ENABLED && (
               <NavLink
                 to="/register"
                 className={({ isActive }) =>
