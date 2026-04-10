@@ -1,45 +1,54 @@
 # Asset Management Web App
 
-## Docker setup
+Internal asset management web application built with React, ASP.NET Core, and PostgreSQL for tracking company equipment, checkouts, availability, and maintenance.
 
-This repository now includes a local development Docker stack for:
+## Project overview
 
-- `frontend` (Vite dev server)
-- `api` (ASP.NET Core API)
-- `db` (PostgreSQL)
+This project is a full-stack demo for managing company assets in one place.
 
-### Docker files in the repo
+Current core capabilities:
 
-- [compose.yaml](./compose.yaml)
-- [frontend/Dockerfile](./frontend/Dockerfile)
-- [frontend/.dockerignore](./frontend/.dockerignore)
-- [api/AssetManagement/AssetManagement.Api/Dockerfile](./api/AssetManagement/AssetManagement.Api/Dockerfile)
-- [api/AssetManagement/AssetManagement.Api/.dockerignore](./api/AssetManagement/AssetManagement.Api/.dockerignore)
-- [.env.example](./.env.example)
+- user login with JWT-based authentication
+- inventory overview for company equipment
+- equipment details with checkout history
+- user checkout and return flow
+- admin-only equipment creation, editing, deletion, and maintenance actions
+- protected equipment image uploads
+- Docker-based local development and production-like demo workflows
 
-### Prerequisites
+## Tech stack
 
-- Docker Desktop installed and running
-- WSL 2 enabled on Windows
+- frontend: React, TypeScript, Vite
+- backend: ASP.NET Core 8, Entity Framework Core
+- database: PostgreSQL
+- containers: Docker Compose
+- production-like frontend serving: Nginx
 
-### Local environment file
+## Repository structure
 
-Create a root `.env` file based on `.env.example`.
+- [compose.yaml](./compose.yaml): local development Docker stack
+- [compose.prod.yaml](./compose.prod.yaml): production-like Docker override
+- [frontend/Dockerfile](./frontend/Dockerfile): frontend dev container
+- [frontend/Dockerfile.prod](./frontend/Dockerfile.prod): production-like frontend build and serve container
+- [frontend/nginx.conf](./frontend/nginx.conf): frontend reverse proxy config for the production-like path
+- [api/AssetManagement/AssetManagement.Api/Dockerfile](./api/AssetManagement/AssetManagement.Api/Dockerfile): API container build
+- [.env.example](./.env.example): example root environment file for Docker Compose
 
-The root `.env` is used by Docker Compose for local values such as:
+## Docker workflows
 
-- exposed host ports
-- PostgreSQL credentials
-- JWT settings
-- frontend API base URL
-- optional local bootstrap admin credentials
-- CORS origins
+The repository currently supports two container workflows.
 
-The root `.env` is ignored by Git and should stay local.
+### 1. Local development stack
 
-### Start the stack
+The default [compose.yaml](./compose.yaml) is the developer-friendly setup:
 
-From the repository root:
+- frontend runs with the Vite dev server
+- API is published directly to a host port
+- PostgreSQL is published directly to a host port
+- public registration can stay enabled
+- login rate limiting is off by default
+
+Start it from the repository root:
 
 ```powershell
 docker compose up --build
@@ -51,21 +60,28 @@ Run in the background:
 docker compose up --build -d
 ```
 
-### Start the production-like stack
+Default local endpoints:
 
-This keeps the same API and database services, but swaps the frontend to the
-build-and-serve container based on `frontend/Dockerfile.prod`.
+- frontend: `http://localhost:5173`
+- API: `http://localhost:5071`
+- PostgreSQL from host tools: `localhost:5433`
 
-In the production-like stack, Nginx serves the frontend and proxies:
+### 2. Production-like stack
 
-- `/api` to the ASP.NET API
-- `/uploads` to the authenticated equipment image endpoint
+The production-like path uses [compose.yaml](./compose.yaml) together with [compose.prod.yaml](./compose.prod.yaml).
 
-This means the browser can use a single origin in the production-like setup.
-The API also enables forwarded-header handling in this mode so proxy-provided
-host, scheme, and client IP information can flow through correctly.
+In this mode:
 
-From the repository root:
+- frontend is built and served from Nginx
+- frontend and API behave like a single-origin app
+- `/api` is proxied to the ASP.NET API
+- `/uploads` is proxied to the protected equipment image endpoint
+- API and PostgreSQL are no longer published to host ports
+- public registration is disabled by default
+- login rate limiting is enabled by default
+- forwarded headers are enabled for the reverse proxy setup
+
+Start it from the repository root:
 
 ```powershell
 docker compose -f compose.yaml -f compose.prod.yaml up --build
@@ -77,23 +93,102 @@ Run in the background:
 docker compose -f compose.yaml -f compose.prod.yaml up --build -d
 ```
 
-### Open the app
+Default production-like endpoint:
 
-- Frontend: `http://localhost:5173`
-- API: `http://localhost:5071`
-- PostgreSQL from host tools: `localhost:5433`
+- app entry point: `http://localhost:8080`
 
-With the production-like compose override:
+In the production-like setup the browser uses:
 
-- Frontend: `http://localhost:8080`
-- API through frontend origin: `http://localhost:8080/api`
-- Uploads through frontend origin: `http://localhost:8080/uploads/...`
+- frontend: `http://localhost:8080`
+- API through the same origin: `http://localhost:8080/api`
+- protected image requests through the same origin: `http://localhost:8080/uploads/...`
 
-In the production-like stack, the API and PostgreSQL services are no longer
-published directly to host ports. The frontend container becomes the public
-entry point.
+## Local environment setup
 
-### Daily commands
+Create a root `.env` file based on [`.env.example`](./.env.example).
+
+The root `.env` is used by Docker Compose for local values such as:
+
+- host ports
+- PostgreSQL credentials
+- frontend runtime settings
+- JWT settings
+- registration flags
+- login rate limit settings
+- bootstrap admin values
+- CORS origins
+
+The root `.env` is ignored by Git and should stay local.
+
+### Important local variables
+
+Local development examples in [`.env.example`](./.env.example):
+
+- `JWT_KEY`
+- `REGISTRATION_ENABLED`
+- `VITE_REGISTRATION_ENABLED`
+- `AUTH_RATE_LIMIT_ENABLED`
+- `BOOTSTRAP_ADMIN_ENABLED`
+
+Production-like override examples are configured through `compose.prod.yaml` defaults such as:
+
+- `REGISTRATION_ENABLED_PROD=false`
+- `VITE_REGISTRATION_ENABLED_PROD=false`
+- `AUTH_RATE_LIMIT_ENABLED_PROD=true`
+
+## Authentication and access behavior
+
+The app currently uses JWT Bearer authentication stored in browser `localStorage`.
+
+Current behavior:
+
+- expired or invalid JWT responses (`401`) clear the local session and redirect the user back to login
+- forbidden responses (`403`) redirect the user to the app root and show a shared permission error message
+- unknown routes redirect unauthenticated visitors back into the login flow
+- unknown routes show a dedicated not-found page only for authenticated users
+- visiting `/login` or `/register` while already logged in triggers an automatic logout
+
+### Registration behavior
+
+Registration is environment-controlled.
+
+Local development:
+
+- registration can stay enabled
+- login and register links are visible in the guest navigation
+
+Production-like mode:
+
+- registration is disabled by default
+- the register page is not available
+- guest navigation hides both login and register links for a cleaner closed-demo flow
+
+## Image uploads
+
+Equipment images are no longer served as public static files.
+
+Current behavior:
+
+- uploaded files are stored in a Docker volume
+- image URLs are resolved through authenticated API access
+- protected image loading uses the logged-in user token
+- unauthorized image requests follow the same session-expired flow as the rest of the app
+
+## Persistence
+
+The Docker setup uses named volumes for:
+
+- PostgreSQL data
+- uploaded equipment images
+- ASP.NET Data Protection keys
+
+This means the following survive container recreation:
+
+- database records
+- uploaded files
+- framework protection keys
+
+## Daily Docker commands
 
 Show running services:
 
@@ -113,29 +208,24 @@ Stop and remove containers:
 docker compose down
 ```
 
-Important:
+Stop containers and remove named volumes too:
 
-- `docker compose down` keeps named volumes
-- `docker compose down -v` also removes volumes and deletes persisted local Docker data
+```powershell
+docker compose down -v
+```
 
-### Persisted Docker data
+## Development notes
 
-This stack uses named volumes for:
+- the backend applies EF Core migrations automatically on startup
+- a local bootstrap admin can be enabled from the root `.env` for development only
+- the frontend forms use explicit `autocomplete` values for better browser and password manager behavior
+- the production-like stack is meant as a realistic demo path, not as a final production deployment
 
-- PostgreSQL data
-- uploaded equipment images
-- ASP.NET Data Protection keys
+## Current limitations
 
-This means the following survive container recreation:
+The project is in a strong demo-ready state, but a few production-level decisions are still intentionally simple:
 
-- database records
-- uploaded files
-- framework protection keys
-
-### Notes
-
-- The frontend currently runs as a Vite development container for easier learning and iteration.
-- The backend applies EF Core migrations automatically on startup.
-- A local bootstrap admin can be enabled from the root `.env` for development only.
-- Equipment uploads are served through authenticated API requests, not as public static files.
-- The current Docker setup is a development-oriented stack, not a production deployment yet.
+- JWT is still stored in `localStorage`
+- forwarded headers currently trust all proxies when the feature is enabled
+- login rate limiting is currently IP-based
+- the production-like Docker path is closer to deployment, but it is not yet a full final deployment setup with TLS, domain routing, and secret management

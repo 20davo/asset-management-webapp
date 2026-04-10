@@ -106,6 +106,7 @@ function RegisterPage() {
               id="name"
               name="name"
               type="text"
+              autoComplete="name"
               value={formData.name}
               onChange={handleChange}
               placeholder={t.auth.fullNamePlaceholder}
@@ -119,6 +120,7 @@ function RegisterPage() {
               id="email"
               name="email"
               type="email"
+              autoComplete="email"
               value={formData.email}
               onChange={handleChange}
               placeholder={t.auth.emailPlaceholder}
@@ -133,6 +135,7 @@ function RegisterPage() {
                 id="password"
                 name="password"
                 type={isPasswordVisible ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
                 required
