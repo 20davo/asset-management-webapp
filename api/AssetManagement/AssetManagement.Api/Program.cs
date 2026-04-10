@@ -2,6 +2,7 @@ using System.Text;
 using AssetManagement.Api.Data;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,6 +13,8 @@ namespace AssetManagement.Api
 {
     public class Program
     {
+        private const string JwtPlaceholderValue = "replace-with-a-long-random-secret-key";
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +29,12 @@ namespace AssetManagement.Api
             var dataProtectionKeysPath = string.IsNullOrWhiteSpace(configuredDataProtectionKeysPath)
                 ? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys")
                 : configuredDataProtectionKeysPath;
+
+            if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey == JwtPlaceholderValue)
+            {
+                throw new InvalidOperationException(
+                    "Jwt:Key must be configured with a real secret value before the application starts.");
+            }
 
             Directory.CreateDirectory(dataProtectionKeysPath);
 
@@ -113,6 +122,18 @@ namespace AssetManagement.Api
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders =
+                    ForwardedHeaders.XForwardedFor
+                    | ForwardedHeaders.XForwardedProto
+                    | ForwardedHeaders.XForwardedHost;
+
+                // The reverse proxy lives on the Docker network in the production-like stack,
+                // so we allow forwarded headers from non-loopback sources when explicitly enabled.
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
 
             var app = builder.Build();
 
@@ -131,20 +152,37 @@ namespace AssetManagement.Api
 
                 context.Database.Migrate();
 
-                var adminExists = context.Users.Any(u => u.Role == UserRoles.Admin);
+                var bootstrapAdminEnabled = builder.Configuration.GetValue<bool>("BootstrapAdmin:Enabled");
 
-                if (!adminExists)
+                if (bootstrapAdminEnabled)
                 {
-                    var adminUser = new User
-                    {
-                        Name = "Admin",
-                        Email = "admin@assetmanagement.local",
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-                        Role = UserRoles.Admin
-                    };
+                    var bootstrapAdminName = builder.Configuration["BootstrapAdmin:Name"]?.Trim();
+                    var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"]?.Trim().ToLowerInvariant();
+                    var bootstrapAdminPassword = builder.Configuration["BootstrapAdmin:Password"];
 
-                    context.Users.Add(adminUser);
-                    context.SaveChanges();
+                    if (string.IsNullOrWhiteSpace(bootstrapAdminName)
+                        || string.IsNullOrWhiteSpace(bootstrapAdminEmail)
+                        || string.IsNullOrWhiteSpace(bootstrapAdminPassword))
+                    {
+                        throw new InvalidOperationException(
+                            "BootstrapAdmin is enabled, but Name, Email, or Password is missing.");
+                    }
+
+                    var adminExists = context.Users.Any(u => u.Role == UserRoles.Admin);
+
+                    if (!adminExists)
+                    {
+                        var adminUser = new User
+                        {
+                            Name = bootstrapAdminName,
+                            Email = bootstrapAdminEmail,
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(bootstrapAdminPassword),
+                            Role = UserRoles.Admin
+                        };
+
+                        context.Users.Add(adminUser);
+                        context.SaveChanges();
+                    }
                 }
             }
 
@@ -155,14 +193,19 @@ namespace AssetManagement.Api
                 app.UseSwaggerUI();
             }
 
+            var forwardedHeadersEnabled = builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled");
+
+            if (forwardedHeadersEnabled)
+            {
+                app.UseForwardedHeaders();
+            }
+
             var httpsRedirectEnabled = builder.Configuration.GetValue<bool>("HttpsRedirection:Enabled");
 
             if (httpsRedirectEnabled)
             {
                 app.UseHttpsRedirection();
             }
-
-            app.UseStaticFiles();
 
             app.UseCors("FrontendPolicy");
 

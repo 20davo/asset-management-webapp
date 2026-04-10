@@ -7,6 +7,7 @@ using AssetManagement.Api.Constants;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace AssetManagement.Api.Controllers
 {
@@ -165,6 +166,32 @@ namespace AssetManagement.Api.Controllers
             {
                 System.IO.File.Delete(filePath);
             }
+        }
+
+        [HttpGet("/uploads/equipment/{fileName}")]
+        [Authorize]
+        public IActionResult GetEquipmentImage(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName) || Path.GetFileName(fileName) != fileName)
+            {
+                return BadRequest(new { message = "Érvénytelen képfájlnév." });
+            }
+
+            var filePath = Path.Combine(GetEquipmentUploadDirectory(), fileName);
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound();
+            }
+
+            var contentTypeProvider = new FileExtensionContentTypeProvider();
+
+            if (!contentTypeProvider.TryGetContentType(fileName, out var contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            return PhysicalFile(filePath, contentType);
         }
 
         [HttpGet]

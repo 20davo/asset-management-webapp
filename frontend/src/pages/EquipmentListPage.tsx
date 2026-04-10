@@ -16,7 +16,7 @@ import {
   getStatusLabel,
 } from '../utils/presentation'
 import { useLanguage } from '../context/LanguageContext'
-import { resolveAssetImageUrl } from '../utils/assetImages'
+import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
 interface EquipmentFormState {
   name: string
@@ -111,7 +111,7 @@ function EquipmentListPage() {
       category: equipment.category,
       description: equipment.description ?? '',
       image: null,
-      imagePreviewUrl: resolveAssetImageUrl(equipment.imageUrl) ?? '',
+      imagePreviewUrl: equipment.imageUrl ?? '',
       removeImage: false,
       serialNumber: equipment.serialNumber,
     })
@@ -323,17 +323,15 @@ function EquipmentListPage() {
   )[0]
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
-    const resolvedImageUrl = resolveAssetImageUrl(imageUrl)
-
     return (
       <div className="equipment-card__media">
-        {resolvedImageUrl ? (
-          <img className="equipment-card__image" src={resolvedImageUrl} alt={name} />
-        ) : (
-          <div className="equipment-card__image-placeholder">
-            <span>{t.common.noImage}</span>
-          </div>
-        )}
+        <ProtectedAssetImage
+          imageUrl={imageUrl}
+          alt={name}
+          className="equipment-card__image"
+          placeholderClassName="equipment-card__image-placeholder"
+          placeholderText={t.common.noImage}
+        />
       </div>
     )
   }
@@ -996,19 +994,15 @@ function EquipmentListPage() {
                   <article key={equipment.id} className="data-list__row">
                     <div className="data-list__cell data-list__cell--primary">
                       <div className="data-list__asset">
-                        <div className="data-list__thumb">
-                          {resolveAssetImageUrl(equipment.imageUrl) ? (
-                            <img
-                              className="data-list__thumb-image"
-                              src={resolveAssetImageUrl(equipment.imageUrl) ?? undefined}
-                              alt={equipment.name}
-                            />
-                          ) : (
-                            <div className="data-list__thumb-placeholder">
-                              <span>{t.common.noImage}</span>
-                            </div>
-                          )}
-                        </div>
+                      <div className="data-list__thumb">
+                        <ProtectedAssetImage
+                          imageUrl={equipment.imageUrl}
+                          alt={equipment.name}
+                          className="data-list__thumb-image"
+                          placeholderClassName="data-list__thumb-placeholder"
+                          placeholderText={t.common.noImage}
+                        />
+                      </div>
 
                         <div className="data-list__asset-copy">
                           <strong className="data-list__primary-text">{equipment.name}</strong>

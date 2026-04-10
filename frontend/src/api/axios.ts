@@ -3,13 +3,19 @@ import { getToken } from '../utils/tokenStorage'
 
 const DEFAULT_API_BASE_URL = 'http://localhost:5071/api'
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const absoluteUrlPattern = /^https?:\/\//i
 
 export const API_BASE_URL = (
   configuredApiBaseUrl && configuredApiBaseUrl.length > 0
     ? configuredApiBaseUrl
     : DEFAULT_API_BASE_URL
 ).replace(/\/+$/, '')
-export const API_ORIGIN = new URL(API_BASE_URL).origin
+
+export const API_ORIGIN = absoluteUrlPattern.test(API_BASE_URL)
+  ? new URL(API_BASE_URL).origin
+  : typeof window !== 'undefined'
+    ? window.location.origin
+    : ''
 
 const api = axios.create({
   baseURL: API_BASE_URL,

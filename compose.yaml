@@ -38,13 +38,15 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       DataProtection__KeysPath: /app/data-protection-keys
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-asset_management};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-      Jwt__Key: ${JWT_KEY:-replace-with-a-long-random-secret-key}
+      Jwt__Key: ${JWT_KEY:?JWT_KEY must be set in the root .env file}
       Jwt__Issuer: ${JWT_ISSUER:-AssetManagement.Api}
       Jwt__Audience: ${JWT_AUDIENCE:-AssetManagement.Client}
+      BootstrapAdmin__Enabled: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BootstrapAdmin__Name: ${BOOTSTRAP_ADMIN_NAME:-}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:5173}
       Cors__AllowedOrigins__1: ${CORS_ALLOWED_ORIGIN_1:-https://localhost:5173}
-      Cors__AllowedOrigins__2: ${CORS_ALLOWED_ORIGIN_2:-http://localhost:3000}
-      Cors__AllowedOrigins__3: ${CORS_ALLOWED_ORIGIN_3:-https://localhost:3000}
     ports:
       - "${API_PORT:-5071}:8080"
     volumes:

@@ -16,7 +16,7 @@ import {
   getStatusLabel,
 } from '../utils/presentation'
 import { useLanguage } from '../context/LanguageContext'
-import { resolveAssetImageUrl } from '../utils/assetImages'
+import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
 function formatDateTimeLocal(date: Date) {
   const year = date.getFullYear()
@@ -199,17 +199,15 @@ function EquipmentDetailsPage() {
     latestCheckoutEntry?.checkedOutAt ?? equipment.lastCheckedOutAt ?? null
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
-    const resolvedImageUrl = resolveAssetImageUrl(imageUrl)
-
     return (
       <div className="equipment-card__media">
-        {resolvedImageUrl ? (
-          <img className="equipment-card__image" src={resolvedImageUrl} alt={name} />
-        ) : (
-          <div className="equipment-card__image-placeholder">
-            <span>{t.common.noImage}</span>
-          </div>
-        )}
+        <ProtectedAssetImage
+          imageUrl={imageUrl}
+          alt={name}
+          className="equipment-card__image"
+          placeholderClassName="equipment-card__image-placeholder"
+          placeholderText={t.common.noImage}
+        />
       </div>
     )
   }

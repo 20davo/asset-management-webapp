@@ -1,0 +1,22 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL_PROD:-/api}
+    environment: !override {}
+    ports: !override
+      - "${FRONTEND_PROD_PORT:-8080}:80"
+
+  api:
+    ports: !override []
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT_PROD:-Production}
+      ForwardedHeaders__Enabled: ${FORWARDED_HEADERS_ENABLED_PROD:-true}
+      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0_PROD:-http://localhost:8080}
+      Cors__AllowedOrigins__1: ${CORS_ALLOWED_ORIGIN_1_PROD:-https://localhost:8080}
+      BootstrapAdmin__Enabled: ${BOOTSTRAP_ADMIN_ENABLED_PROD:-false}
+
+  db:
+    ports: !override []

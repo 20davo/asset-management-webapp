@@ -9,7 +9,7 @@ import {
   getStatusLabel,
   isCheckoutOverdue,
 } from '../utils/presentation'
-import { resolveAssetImageUrl } from '../utils/assetImages'
+import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
 function MyCheckoutsPage() {
   const { language, t } = useLanguage()
@@ -43,17 +43,15 @@ function MyCheckoutsPage() {
   const returnedCount = checkouts.filter((checkout) => !!checkout.returnedAt).length
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
-    const resolvedImageUrl = resolveAssetImageUrl(imageUrl)
-
     return (
       <div className="equipment-card__media">
-        {resolvedImageUrl ? (
-          <img className="equipment-card__image" src={resolvedImageUrl} alt={name} />
-        ) : (
-          <div className="equipment-card__image-placeholder">
-            <span>{t.common.noImage}</span>
-          </div>
-        )}
+        <ProtectedAssetImage
+          imageUrl={imageUrl}
+          alt={name}
+          className="equipment-card__image"
+          placeholderClassName="equipment-card__image-placeholder"
+          placeholderText={t.common.noImage}
+        />
       </div>
     )
   }
@@ -176,17 +174,13 @@ function MyCheckoutsPage() {
                   <div className="data-list__cell data-list__cell--primary">
                     <div className="data-list__asset">
                       <div className="data-list__thumb">
-                        {resolveAssetImageUrl(checkout.equipment.imageUrl) ? (
-                          <img
-                            className="data-list__thumb-image"
-                            src={resolveAssetImageUrl(checkout.equipment.imageUrl) ?? undefined}
-                            alt={checkout.equipment.name}
-                          />
-                        ) : (
-                          <div className="data-list__thumb-placeholder">
-                            <span>{t.common.noImage}</span>
-                          </div>
-                        )}
+                        <ProtectedAssetImage
+                          imageUrl={checkout.equipment.imageUrl}
+                          alt={checkout.equipment.name}
+                          className="data-list__thumb-image"
+                          placeholderClassName="data-list__thumb-placeholder"
+                          placeholderText={t.common.noImage}
+                        />
                       </div>
 
                       <div className="data-list__asset-copy">
