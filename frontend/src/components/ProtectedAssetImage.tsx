@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { handleUnauthorizedResponse } from '../api/axios'
 import { getToken } from '../utils/tokenStorage'
 import { resolveAssetImageUrl } from '../utils/assetImages'
 
@@ -67,7 +68,11 @@ export function ProtectedAssetImage({
 
         objectUrl = URL.createObjectURL(response.data)
         setResolvedSrc(objectUrl)
-      } catch {
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          handleUnauthorizedResponse(requestUrl)
+        }
+
         if (!isCancelled) {
           setResolvedSrc(null)
         }

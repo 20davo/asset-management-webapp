@@ -1,6 +1,15 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { login as loginRequest } from '../api/authApi'
 import type { AuthUser, LoginRequest } from '../types/auth'
+import { setUnauthorizedHandler } from '../api/axios'
 import {
   getStoredUser,
   getToken,
@@ -28,6 +37,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setTokenState] = useState<string | null>(getToken())
   const [user, setUser] = useState<AuthUser | null>(getStoredUser())
 
+  const clearSession = useCallback(() => {
+    removeToken()
+    removeStoredUser()
+
+    setTokenState(null)
+    setUser(null)
+  }, [])
+
   async function login(data: LoginRequest) {
     const response = await loginRequest(data)
 
@@ -38,13 +55,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.user)
   }
 
-  function logout() {
-    removeToken()
-    removeStoredUser()
+  const logout = useCallback(() => {
+    clearSession()
+  }, [clearSession])
 
-    setTokenState(null)
-    setUser(null)
-  }
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession()
+
+      if (typeof window === 'undefined' || window.location.pathname === '/login') {
+        return
+      }
+
+      window.location.replace('/login?reason=session-expired')
+    })
+
+    return () => {
+      setUnauthorizedHandler(null)
+    }
+  }, [clearSession])
 
   const value = useMemo(
     () => ({

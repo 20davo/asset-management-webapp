@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
 
   const [formData, setFormData] = useState({
     email: '',
@@ -16,6 +17,23 @@ function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const reason = searchParams.get('reason')
+
+    if (reason !== 'session-expired') {
+      return
+    }
+
+    setErrorMessage(
+      language === 'en'
+        ? 'Your session expired. Please sign in again.'
+        : 'A munkameneted lejart. Jelentkezz be ujra.',
+    )
+
+    navigate('/login', { replace: true })
+  }, [language, location.search, navigate])
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target

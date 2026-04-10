@@ -4,6 +4,7 @@ import { getToken } from '../utils/tokenStorage'
 const DEFAULT_API_BASE_URL = 'http://localhost:5071/api'
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const absoluteUrlPattern = /^https?:\/\//i
+let unauthorizedHandler: (() => void) | null = null
 
 export const API_BASE_URL = (
   configuredApiBaseUrl && configuredApiBaseUrl.length > 0
@@ -21,6 +22,26 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 })
 
+function isAuthRequest(url: string | undefined) {
+  if (!url) {
+    return false
+  }
+
+  return url.includes('/auth/login') || url.includes('/auth/register')
+}
+
+function handleUnauthorizedResponse(url: string | undefined) {
+  if (!getToken() || isAuthRequest(url)) {
+    return
+  }
+
+  unauthorizedHandler?.()
+}
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
+
 api.interceptors.request.use((config) => {
   const token = getToken()
 
@@ -31,4 +52,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      handleUnauthorizedResponse(error.config?.url)
+    }
+
+    return Promise.reject(error)
+  },
+)
+
+export { handleUnauthorizedResponse }
 export default api
