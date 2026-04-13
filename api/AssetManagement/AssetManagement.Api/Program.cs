@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Threading.RateLimiting;
 using AssetManagement.Api.Data;
 using Microsoft.AspNetCore.DataProtection;
@@ -132,7 +132,7 @@ namespace AssetManagement.Api
                     context.HttpContext.Response.ContentType = "application/json";
 
                     var message = context.HttpContext.Request.Path.StartsWithSegments("/api/auth/login")
-                        ? "Túl sok bejelentkezési próbálkozás. Próbald újra később."
+                        ? "Túl sok bejelentkezési próbálkozás. Próbáld újra később."
                         : "Túl sok kérés. Próbáld újra később.";
 
                     await context.HttpContext.Response.WriteAsJsonAsync(
@@ -261,3 +261,5 @@ namespace AssetManagement.Api
         }
     }
 }
+
+

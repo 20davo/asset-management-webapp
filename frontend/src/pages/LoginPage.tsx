@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { REGISTRATION_ENABLED } from '../config/runtime'
@@ -30,7 +30,7 @@ function LoginPage() {
     setErrorMessage(
       language === 'en'
         ? 'Your session expired. Please sign in again.'
-        : 'A munkameneted lejart. Jelentkezz be ujra.',
+        : 'A munkameneted lejárt. Jelentkezz be újra.',
     )
 
     navigate('/login', { replace: true })
@@ -210,3 +210,4 @@ function LoginPage() {
 }
 
 export default LoginPage
+
