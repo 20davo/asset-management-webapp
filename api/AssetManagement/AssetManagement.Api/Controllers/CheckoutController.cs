@@ -97,6 +97,50 @@ namespace AssetManagement.Api.Controllers
             return Ok(checkout);
         }
 
+        [HttpGet("user/{userId:int}")]
+        [Authorize(Roles = UserRoles.Admin)]
+        public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetByUser(int userId)
+        {
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+
+            if (!userExists)
+            {
+                return NotFound(new { message = "A felhasználó nem található." });
+            }
+
+            var checkouts = await _context.Checkouts
+                .Include(c => c.Equipment)
+                .Include(c => c.User)
+                .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.CheckedOutAt)
+                .Select(c => new CheckoutResponseDto
+                {
+                    Id = c.Id,
+                    CheckedOutAt = c.CheckedOutAt,
+                    DueAt = c.DueAt,
+                    ReturnedAt = c.ReturnedAt,
+                    Note = c.Note,
+                    Equipment = new CheckoutEquipmentDto
+                    {
+                        Id = c.Equipment!.Id,
+                        Name = c.Equipment.Name,
+                        Category = c.Equipment.Category,
+                        ImageUrl = c.Equipment.ImageUrl,
+                        SerialNumber = c.Equipment.SerialNumber,
+                        Status = c.Equipment.Status
+                    },
+                    User = new CheckoutUserDto
+                    {
+                        Id = c.User!.Id,
+                        Name = c.User.Name,
+                        Email = c.User.Email
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(checkouts);
+        }
+
         [HttpGet("my")]
         public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetMyCheckouts()
         {

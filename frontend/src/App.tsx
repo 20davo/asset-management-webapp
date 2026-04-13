@@ -1,15 +1,18 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+﻿import { useEffect, useRef, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import { useLanguage } from './context/LanguageContext'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
+import AllCheckoutsPage from './pages/AllCheckoutsPage'
 import EquipmentDetailsPage from './pages/EquipmentDetailsPage'
 import EquipmentListPage from './pages/EquipmentListPage'
 import LoginPage from './pages/LoginPage'
-import MyCheckoutsPage from './pages/MyCheckoutsPage'
+import MyItemsPage from './pages/MyItemsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RegisterPage from './pages/RegisterPage'
+import UserDetailsPage from './pages/UserDetailsPage'
+import UsersPage from './pages/UsersPage'
 import { REGISTRATION_ENABLED } from './config/runtime'
 
 interface AuthPageRouteProps {
@@ -81,12 +84,44 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/my-checkouts"
+        path="/all-checkouts"
         element={
           <ProtectedRoute>
-            <MyCheckoutsPage />
+            <AllCheckoutsPage />
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-items"
+        element={
+          <ProtectedRoute>
+            <MyItemsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-checkouts"
+        element={<Navigate to="/my-items" replace />}
+      />
+      <Route
+        path="/users/:userId"
+        element={
+          <ProtectedRoute>
+            <UserDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users/:userId/checkouts"
+        element={<Navigate to=".." relative="path" replace />}
       />
       <Route
         path="/login"

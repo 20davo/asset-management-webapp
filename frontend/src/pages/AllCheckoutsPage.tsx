@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { getMyCheckouts } from '../api/checkoutApi'
+import { getAllCheckouts } from '../api/checkoutApi'
+import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
@@ -11,7 +12,6 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
-import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
 type CheckoutSort = 'recent' | 'dueSoon' | 'dueLate'
@@ -46,9 +46,10 @@ function getCheckoutTimelineState(checkout: CheckoutItem) {
   return null
 }
 
-function MyCheckoutsPage() {
+function AllCheckoutsPage() {
   const { user } = useAuth()
   const { language, t } = useLanguage()
+
   const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -61,7 +62,7 @@ function MyCheckoutsPage() {
     async function loadCheckouts() {
       try {
         setErrorMessage('')
-        const data = await getMyCheckouts()
+        const data = await getAllCheckouts()
         setCheckouts(data)
       } catch (error: any) {
         const apiMessage = error?.response?.data?.message || t.checkouts.loadError
@@ -95,6 +96,8 @@ function MyCheckoutsPage() {
               checkout.equipment.name,
               checkout.equipment.category,
               checkout.equipment.serialNumber,
+              checkout.user.name,
+              checkout.user.email,
               checkout.note ?? '',
             ]
               .join(' ')
@@ -166,8 +169,8 @@ function MyCheckoutsPage() {
     )
   }
 
-  if (user?.role === 'Admin') {
-    return <Navigate to="/users" replace />
+  if (user?.role !== 'Admin') {
+    return <Navigate to="/?reason=forbidden" replace />
   }
 
   if (isLoading) {
@@ -182,9 +185,9 @@ function MyCheckoutsPage() {
     <div className="page-shell">
       <section className="page-hero">
         <div className="page-hero__content">
-          <span className="page-kicker">{t.checkouts.heroKicker}</span>
-          <h1 className="page-title">{t.checkouts.heroTitle}</h1>
-          <p className="page-subtitle">{t.checkouts.heroText}</p>
+          <span className="page-kicker">{t.checkouts.allHeroKicker}</span>
+          <h1 className="page-title">{t.checkouts.allHeroTitle}</h1>
+          <p className="page-subtitle">{t.checkouts.allHeroText}</p>
         </div>
 
         <div className="page-hero__panel">
@@ -223,22 +226,22 @@ function MyCheckoutsPage() {
       <section className="section-card section-card--compact filter-panel">
         <div className="filter-panel__grid">
           <div className="form-field">
-            <label htmlFor="my-checkouts-search">{t.common.search}</label>
+            <label htmlFor="all-checkouts-search">{t.common.search}</label>
             <input
-              id="my-checkouts-search"
+              id="all-checkouts-search"
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t.checkouts.searchPlaceholder}
+              placeholder={t.checkouts.allSearchPlaceholder}
             />
           </div>
 
           <div className="form-field">
-            <label htmlFor="my-checkouts-status-filter">
+            <label htmlFor="all-checkouts-status-filter">
               {t.checkouts.statusFilterLabel}
             </label>
             <select
-              id="my-checkouts-status-filter"
+              id="all-checkouts-status-filter"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
             >
@@ -250,9 +253,9 @@ function MyCheckoutsPage() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="my-checkouts-sort">{t.checkouts.sortByLabel}</label>
+            <label htmlFor="all-checkouts-sort">{t.checkouts.sortByLabel}</label>
             <select
-              id="my-checkouts-sort"
+              id="all-checkouts-sort"
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
             >
@@ -275,8 +278,8 @@ function MyCheckoutsPage() {
 
       {checkouts.length === 0 ? (
         <div className="empty-state">
-          <h3>{t.checkouts.emptyTitle}</h3>
-          <p>{t.checkouts.emptyText}</p>
+          <h3>{t.checkouts.allEmptyTitle}</h3>
+          <p>{t.checkouts.allEmptyText}</p>
         </div>
       ) : filteredCheckouts.length === 0 ? (
         <div className="empty-state">
@@ -287,11 +290,11 @@ function MyCheckoutsPage() {
         <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
-              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
-              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+              <span className="section-heading__eyebrow">{t.checkouts.allHeroKicker}</span>
+              <h2 className="section-heading__title">{t.checkouts.allHeroTitle}</h2>
             </div>
             <div className="section-heading__aside">
-              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              <p className="section-heading__text">{t.checkouts.allHeroText}</p>
               {renderCheckoutViewSwitch()}
             </div>
           </div>
@@ -299,6 +302,7 @@ function MyCheckoutsPage() {
           <div className="data-list data-list--checkouts">
             <div className="data-list__header">
               <span className="data-list__heading">{t.common.asset}</span>
+              <span className="data-list__heading">{t.common.user}</span>
               <span className="data-list__heading">{t.common.status}</span>
               <span className="data-list__heading">{t.checkouts.checkedOutAt}</span>
               <span className="data-list__heading">{t.checkouts.dueAt}</span>
@@ -343,6 +347,19 @@ function MyCheckoutsPage() {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">{t.common.user}</span>
+                    <Link
+                      to={`/users/${checkout.user.id}`}
+                      className="context-link context-link--stack"
+                    >
+                      <strong className="data-list__context-name context-link__primary">
+                        {checkout.user.name}
+                      </strong>
+                    </Link>
+                    <span className="data-list__context-value">{checkout.user.email}</span>
                   </div>
 
                     <div className="data-list__cell">
@@ -394,11 +411,11 @@ function MyCheckoutsPage() {
         <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
-              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
-              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+              <span className="section-heading__eyebrow">{t.checkouts.allHeroKicker}</span>
+              <h2 className="section-heading__title">{t.checkouts.allHeroTitle}</h2>
             </div>
             <div className="section-heading__aside">
-              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              <p className="section-heading__text">{t.checkouts.allHeroText}</p>
               {renderCheckoutViewSwitch()}
             </div>
           </div>
@@ -452,6 +469,20 @@ function MyCheckoutsPage() {
                         </div>
                       </div>
 
+                      <div className="inventory-status-context">
+                        <span className="inventory-status-context__label">
+                          {t.common.user}
+                        </span>
+                        <Link to={`/users/${checkout.user.id}`} className="context-link">
+                          <strong className="inventory-status-context__value context-link__primary">
+                            {checkout.user.name}
+                          </strong>
+                        </Link>
+                        <span className="inventory-status-context__meta">
+                          {checkout.user.email}
+                        </span>
+                      </div>
+
                       <div className="equipment-meta">
                         <div className="equipment-meta__item">
                           <span className="equipment-meta__label">
@@ -470,9 +501,7 @@ function MyCheckoutsPage() {
                         </div>
 
                         <div className="equipment-meta__item">
-                          <span className="equipment-meta__label">
-                            {t.checkouts.returnedAt}
-                          </span>
+                          <span className="equipment-meta__label">{t.checkouts.returnedAt}</span>
                           <span className="equipment-meta__value">
                             {checkout.returnedAt
                               ? formatDateTime(checkout.returnedAt, language)
@@ -512,4 +541,4 @@ function MyCheckoutsPage() {
   )
 }
 
-export default MyCheckoutsPage
+export default AllCheckoutsPage

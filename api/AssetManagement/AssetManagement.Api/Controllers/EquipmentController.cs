@@ -213,13 +213,16 @@ namespace AssetManagement.Api.Controllers
                     SerialNumber = e.SerialNumber,
                     Status = e.Status,
                     CreatedAt = e.CreatedAt,
-                    ActiveCheckoutUserName = isAdmin
-                        ? e.Checkouts
-                            .Where(c => c.ReturnedAt == null)
-                            .OrderByDescending(c => c.CheckedOutAt)
-                            .Select(c => c.User != null ? c.User.Name : null)
-                            .FirstOrDefault()
-                        : null,
+                    ActiveCheckoutUserName = e.Checkouts
+                        .Where(c => c.ReturnedAt == null)
+                        .OrderByDescending(c => c.CheckedOutAt)
+                        .Select(c => c.User != null ? c.User.Name : null)
+                        .FirstOrDefault(),
+                    ActiveCheckoutDueAt = e.Checkouts
+                        .Where(c => c.ReturnedAt == null)
+                        .OrderByDescending(c => c.CheckedOutAt)
+                        .Select(c => (DateTime?)c.DueAt)
+                        .FirstOrDefault(),
                     MaintenanceByUserName = isAdmin && e.MaintenanceByUser != null
                         ? e.MaintenanceByUser.Name
                         : null
@@ -458,6 +461,9 @@ namespace AssetManagement.Api.Controllers
                 return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
             }
 
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var isAdmin = roleClaim == UserRoles.Admin;
+
             if (dto.DueAt <= DateTime.UtcNow)
             {
                 return BadRequest(new { message = "A határidőnek jövőbeli dátumnak kell lennie." });
@@ -468,10 +474,40 @@ namespace AssetManagement.Api.Controllers
                 return BadRequest(new { message = "Az eszköz jelenleg nem elérhető kikérésre." });
             }
 
+            var targetUserId = userId;
+
+            if (isAdmin)
+            {
+                if (!dto.AssignedUserId.HasValue)
+                {
+                    return BadRequest(new { message = "Adminként ki kell választanod, melyik felhasználóhoz rendeled az eszközt." });
+                }
+
+                if (dto.AssignedUserId.Value == userId)
+                {
+                    return BadRequest(new { message = "Az admin nem kérheti ki saját magának az eszközt." });
+                }
+
+                var assignedUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id == dto.AssignedUserId.Value);
+
+                if (assignedUser == null)
+                {
+                    return BadRequest(new { message = "A kiválasztott felhasználó nem található." });
+                }
+
+                if (assignedUser.Role != UserRoles.User)
+                {
+                    return BadRequest(new { message = "Az eszköz csak normál felhasználóhoz rendelhető." });
+                }
+
+                targetUserId = assignedUser.Id;
+            }
+
             var checkout = new Checkout
             {
                 EquipmentId = equipment.Id,
-                UserId = userId,
+                UserId = targetUserId,
                 DueAt = dto.DueAt,
                 Note = normalizedNote,
                 CheckedOutAt = DateTime.UtcNow
@@ -486,7 +522,9 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz sikeresen kikérve.",
+                message = isAdmin
+                    ? "Az eszköz sikeresen felhasználóhoz rendelve."
+                    : "Az eszköz sikeresen kikérve.",
                 equipmentId = equipment.Id,
                 checkoutId = checkout.Id
             });

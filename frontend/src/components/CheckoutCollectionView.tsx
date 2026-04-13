@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
-import { getMyCheckouts } from '../api/checkoutApi'
-import { useAuth } from '../context/AuthContext'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ProtectedAssetImage } from './ProtectedAssetImage'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import {
@@ -11,10 +10,23 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
-import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
 type CheckoutSort = 'recent' | 'dueSoon' | 'dueLate'
+
+interface CheckoutCollectionViewProps {
+  items: CheckoutItem[]
+  emptyTitle: string
+  emptyText: string
+  searchPlaceholder: string
+  heroKicker: string
+  heroTitle: string
+  heroText: string
+  showUserColumn?: boolean
+  getUserLink?: (checkout: CheckoutItem) => string
+  linkAssetNameOnly?: boolean
+  compact?: boolean
+}
 
 function getCheckoutState(checkout: CheckoutItem): Exclude<CheckoutFilter, 'all'> {
   if (checkout.returnedAt) {
@@ -33,57 +45,48 @@ function getCheckoutTimelineState(checkout: CheckoutItem) {
     return {
       pillClass: 'timeline-pill timeline-pill--danger',
       pillLabel: 'overdue',
-    }
+    } as const
   }
 
   if (isCheckoutDueSoon(checkout.dueAt, checkout.returnedAt)) {
     return {
       pillClass: 'timeline-pill timeline-pill--warning',
       pillLabel: 'dueSoon',
-    }
+    } as const
   }
 
   return null
 }
 
-function MyCheckoutsPage() {
-  const { user } = useAuth()
+export function CheckoutCollectionView({
+  items,
+  emptyTitle,
+  emptyText,
+  searchPlaceholder,
+  heroKicker,
+  heroTitle,
+  heroText,
+  showUserColumn = false,
+  getUserLink,
+  linkAssetNameOnly = false,
+  compact = false,
+}: CheckoutCollectionViewProps) {
   const { language, t } = useLanguage()
-  const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
   const [checkoutView, setCheckoutView] = useState<'cards' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<CheckoutFilter>('all')
   const [sortBy, setSortBy] = useState<CheckoutSort>('recent')
 
-  useEffect(() => {
-    async function loadCheckouts() {
-      try {
-        setErrorMessage('')
-        const data = await getMyCheckouts()
-        setCheckouts(data)
-      } catch (error: any) {
-        const apiMessage = error?.response?.data?.message || t.checkouts.loadError
-        setErrorMessage(apiMessage)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    void loadCheckouts()
-  }, [t.checkouts.loadError])
-
-  const activeCount = checkouts.filter((checkout) => !checkout.returnedAt).length
-  const overdueCount = checkouts.filter((checkout) =>
+  const activeCount = items.filter((checkout) => !checkout.returnedAt).length
+  const overdueCount = items.filter((checkout) =>
     isCheckoutOverdue(checkout.dueAt, checkout.returnedAt),
   ).length
-  const returnedCount = checkouts.filter((checkout) => !!checkout.returnedAt).length
+  const returnedCount = items.filter((checkout) => !!checkout.returnedAt).length
 
   const filteredCheckouts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    const result = checkouts.filter((checkout) => {
+    const result = items.filter((checkout) => {
       const checkoutState = getCheckoutState(checkout)
       const matchesStatus =
         statusFilter === 'all' ? true : checkoutState === statusFilter
@@ -95,6 +98,8 @@ function MyCheckoutsPage() {
               checkout.equipment.name,
               checkout.equipment.category,
               checkout.equipment.serialNumber,
+              checkout.user.name,
+              checkout.user.email,
               checkout.note ?? '',
             ]
               .join(' ')
@@ -119,7 +124,7 @@ function MyCheckoutsPage() {
     })
 
     return result
-  }, [checkouts, searchQuery, sortBy, statusFilter])
+  }, [items, searchQuery, sortBy, statusFilter])
 
   function resetFilters() {
     setSearchQuery('')
@@ -166,117 +171,78 @@ function MyCheckoutsPage() {
     )
   }
 
-  if (user?.role === 'Admin') {
-    return <Navigate to="/users" replace />
-  }
+  function renderUserBlock(checkout: CheckoutItem) {
+    const userLink = getUserLink?.(checkout)
+    const content = (
+      <>
+        <strong className="data-list__context-name context-link__primary">
+          {checkout.user.name}
+        </strong>
+        <span className="data-list__context-label">{checkout.user.email}</span>
+      </>
+    )
 
-  if (isLoading) {
-    return <div className="loading-state">{t.checkouts.loading}</div>
-  }
+    if (userLink) {
+      return (
+        <Link to={userLink} className="context-link context-link--stack">
+          {content}
+        </Link>
+      )
+    }
 
-  if (errorMessage) {
-    return <p className="form-error">{errorMessage}</p>
+    return <div className="data-list__context-stack">{content}</div>
   }
 
   return (
-    <div className="page-shell">
-      <section className="page-hero">
-        <div className="page-hero__content">
-          <span className="page-kicker">{t.checkouts.heroKicker}</span>
-          <h1 className="page-title">{t.checkouts.heroTitle}</h1>
-          <p className="page-subtitle">{t.checkouts.heroText}</p>
-        </div>
+    <>
+      {!compact && (
+        <>
+          <section className="page-hero">
+            <div className="page-hero__content">
+              <span className="page-kicker">{heroKicker}</span>
+              <h1 className="page-title">{heroTitle}</h1>
+              <p className="page-subtitle">{heroText}</p>
+            </div>
 
-        <div className="page-hero__panel">
-          <span className="page-hero__panel-label">{t.checkouts.activeState}</span>
-          <strong className="page-hero__panel-value">
-            {activeCount} {t.checkouts.openCount}
-          </strong>
-          <p className="page-hero__panel-text">
-            {overdueCount > 0
-              ? overdueCount === 1
-                ? t.checkouts.overdueSummarySingle
-                : t.checkouts.overdueSummary(overdueCount)
-              : t.checkouts.noOverdue}
-          </p>
-        </div>
-      </section>
+            <div className="page-hero__panel">
+              <span className="page-hero__panel-label">{t.checkouts.activeState}</span>
+              <strong className="page-hero__panel-value">
+                {activeCount} {t.checkouts.openCount}
+              </strong>
+              <p className="page-hero__panel-text">
+                {overdueCount > 0
+                  ? overdueCount === 1
+                    ? t.checkouts.overdueSummarySingle
+                    : t.checkouts.overdueSummary(overdueCount)
+                  : t.checkouts.noOverdue}
+              </p>
+            </div>
+          </section>
 
-      <section className="stats-grid stats-grid--three">
-        <article className="stat-card">
-          <span className="stat-card__label">{t.checkouts.active}</span>
-          <strong className="stat-card__value">{activeCount}</strong>
-          <span className="stat-card__note">{t.checkouts.activeNote}</span>
-        </article>
-        <article className="stat-card">
-          <span className="stat-card__label">{t.checkouts.overdue}</span>
-          <strong className="stat-card__value">{overdueCount}</strong>
-          <span className="stat-card__note">{t.checkouts.overdueNote}</span>
-        </article>
-        <article className="stat-card">
-          <span className="stat-card__label">{t.checkouts.closed}</span>
-          <strong className="stat-card__value">{returnedCount}</strong>
-          <span className="stat-card__note">{t.checkouts.closedNote}</span>
-        </article>
-      </section>
+          <section className="stats-grid stats-grid--three">
+            <article className="stat-card">
+              <span className="stat-card__label">{t.checkouts.active}</span>
+              <strong className="stat-card__value">{activeCount}</strong>
+              <span className="stat-card__note">{t.checkouts.activeNote}</span>
+            </article>
+            <article className="stat-card">
+              <span className="stat-card__label">{t.checkouts.overdue}</span>
+              <strong className="stat-card__value">{overdueCount}</strong>
+              <span className="stat-card__note">{t.checkouts.overdueNote}</span>
+            </article>
+            <article className="stat-card">
+              <span className="stat-card__label">{t.checkouts.closed}</span>
+              <strong className="stat-card__value">{returnedCount}</strong>
+              <span className="stat-card__note">{t.checkouts.closedNote}</span>
+            </article>
+          </section>
+        </>
+      )}
 
-      <section className="section-card section-card--compact filter-panel">
-        <div className="filter-panel__grid">
-          <div className="form-field">
-            <label htmlFor="my-checkouts-search">{t.common.search}</label>
-            <input
-              id="my-checkouts-search"
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t.checkouts.searchPlaceholder}
-            />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="my-checkouts-status-filter">
-              {t.checkouts.statusFilterLabel}
-            </label>
-            <select
-              id="my-checkouts-status-filter"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
-            >
-              <option value="all">{t.checkouts.filterAll}</option>
-              <option value="active">{t.checkouts.filterActive}</option>
-              <option value="overdue">{t.checkouts.filterOverdue}</option>
-              <option value="closed">{t.checkouts.filterClosed}</option>
-            </select>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="my-checkouts-sort">{t.checkouts.sortByLabel}</label>
-            <select
-              id="my-checkouts-sort"
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
-            >
-              <option value="recent">{t.checkouts.sortRecent}</option>
-              <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
-              <option value="dueLate">{t.checkouts.sortDueLate}</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="filter-panel__footer">
-          <p className="filter-panel__summary">
-            {filteredCheckouts.length} / {checkouts.length}
-          </p>
-          <button type="button" className="button-secondary" onClick={resetFilters}>
-            {t.common.clearFilters}
-          </button>
-        </div>
-      </section>
-
-      {checkouts.length === 0 ? (
+      {items.length === 0 ? (
         <div className="empty-state">
-          <h3>{t.checkouts.emptyTitle}</h3>
-          <p>{t.checkouts.emptyText}</p>
+          <h3>{emptyTitle}</h3>
+          <p>{emptyText}</p>
         </div>
       ) : filteredCheckouts.length === 0 ? (
         <div className="empty-state">
@@ -287,18 +253,82 @@ function MyCheckoutsPage() {
         <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
-              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
-              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+              <span className="section-heading__eyebrow">{heroKicker}</span>
+              <h2 className="section-heading__title">{compact ? heroTitle : heroTitle}</h2>
             </div>
             <div className="section-heading__aside">
-              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              <p className="section-heading__text">{heroText}</p>
               {renderCheckoutViewSwitch()}
             </div>
           </div>
 
-          <div className="data-list data-list--checkouts">
+          <section className="section-card section-card--compact filter-panel">
+            <div className="filter-panel__grid filter-panel__grid--checkout">
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-search`}>{t.common.search}</label>
+                <input
+                  id={`${heroTitle}-search`}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-status-filter`}>
+                  {t.checkouts.statusFilterLabel}
+                </label>
+                <select
+                  id={`${heroTitle}-status-filter`}
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
+                >
+                  <option value="all">{t.checkouts.filterAll}</option>
+                  <option value="active">{t.checkouts.filterActive}</option>
+                  <option value="overdue">{t.checkouts.filterOverdue}</option>
+                  <option value="closed">{t.checkouts.filterClosed}</option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-sort`}>{t.checkouts.sortByLabel}</label>
+                <select
+                  id={`${heroTitle}-sort`}
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
+                >
+                  <option value="recent">{t.checkouts.sortRecent}</option>
+                  <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
+                  <option value="dueLate">{t.checkouts.sortDueLate}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="filter-panel__footer">
+              <p className="filter-panel__summary">
+                {filteredCheckouts.length} / {items.length}
+              </p>
+              <button type="button" className="button-secondary" onClick={resetFilters}>
+                {t.common.clearFilters}
+              </button>
+            </div>
+          </section>
+
+          <div
+            className={`data-list ${
+              showUserColumn
+                ? linkAssetNameOnly
+                  ? 'data-list--checkouts-with-user-name-link'
+                  : 'data-list--checkouts-with-user'
+                : linkAssetNameOnly
+                  ? 'data-list--checkouts-name-link'
+                  : 'data-list--checkouts'
+            }`}
+          >
             <div className="data-list__header">
               <span className="data-list__heading">{t.common.asset}</span>
+              {showUserColumn && <span className="data-list__heading">{t.common.user}</span>}
               <span className="data-list__heading">{t.common.status}</span>
               <span className="data-list__heading">{t.checkouts.checkedOutAt}</span>
               <span className="data-list__heading">{t.checkouts.dueAt}</span>
@@ -345,26 +375,31 @@ function MyCheckoutsPage() {
                     </div>
                   </div>
 
+                  {showUserColumn && (
                     <div className="data-list__cell">
-                      <span className="data-list__mobile-label">{t.common.status}</span>
-                      <div className="data-list__status-stack">
-                        <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                          {getStatusLabel(checkout.equipment.status, language)}
-                        </span>
-                        {timelineState && (
-                          <span className={timelineState.pillClass}>
-                            {timelineState.pillLabel === 'overdue'
-                              ? t.checkouts.overdueBadge
-                              : t.checkouts.dueSoonBadge}
-                          </span>
-                        )}
-                      </div>
+                      <span className="data-list__mobile-label">{t.common.user}</span>
+                      {renderUserBlock(checkout)}
                     </div>
+                  )}
 
                   <div className="data-list__cell">
-                    <span className="data-list__mobile-label">
-                      {t.checkouts.checkedOutAt}
-                    </span>
+                    <span className="data-list__mobile-label">{t.common.status}</span>
+                    <div className="data-list__status-stack">
+                      <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                        {getStatusLabel(checkout.equipment.status, language)}
+                      </span>
+                      {timelineState && (
+                        <span className={timelineState.pillClass}>
+                          {timelineState.pillLabel === 'overdue'
+                            ? t.checkouts.overdueBadge
+                            : t.checkouts.dueSoonBadge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="data-list__cell">
+                    <span className="data-list__mobile-label">{t.checkouts.checkedOutAt}</span>
                     <span className="data-list__value">
                       {formatDateTime(checkout.checkedOutAt, language)}
                     </span>
@@ -385,6 +420,7 @@ function MyCheckoutsPage() {
                         : t.checkouts.notClosed}
                     </span>
                   </div>
+
                 </article>
               )
             })}
@@ -394,19 +430,73 @@ function MyCheckoutsPage() {
         <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
-              <span className="section-heading__eyebrow">{t.checkouts.heroKicker}</span>
-              <h2 className="section-heading__title">{t.checkouts.heroTitle}</h2>
+              <span className="section-heading__eyebrow">{heroKicker}</span>
+              <h2 className="section-heading__title">{heroTitle}</h2>
             </div>
             <div className="section-heading__aside">
-              <p className="section-heading__text">{t.checkouts.heroText}</p>
+              <p className="section-heading__text">{heroText}</p>
               {renderCheckoutViewSwitch()}
             </div>
           </div>
+
+          <section className="section-card section-card--compact filter-panel">
+            <div className="filter-panel__grid filter-panel__grid--checkout">
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-search`}>{t.common.search}</label>
+                <input
+                  id={`${heroTitle}-search`}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-status-filter`}>
+                  {t.checkouts.statusFilterLabel}
+                </label>
+                <select
+                  id={`${heroTitle}-status-filter`}
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
+                >
+                  <option value="all">{t.checkouts.filterAll}</option>
+                  <option value="active">{t.checkouts.filterActive}</option>
+                  <option value="overdue">{t.checkouts.filterOverdue}</option>
+                  <option value="closed">{t.checkouts.filterClosed}</option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor={`${heroTitle}-sort`}>{t.checkouts.sortByLabel}</label>
+                <select
+                  id={`${heroTitle}-sort`}
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
+                >
+                  <option value="recent">{t.checkouts.sortRecent}</option>
+                  <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
+                  <option value="dueLate">{t.checkouts.sortDueLate}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="filter-panel__footer">
+              <p className="filter-panel__summary">
+                {filteredCheckouts.length} / {items.length}
+              </p>
+              <button type="button" className="button-secondary" onClick={resetFilters}>
+                {t.common.clearFilters}
+              </button>
+            </div>
+          </section>
 
           <div className="equipment-list">
             {filteredCheckouts.map((checkout) => {
               const overdue = isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)
               const timelineState = getCheckoutTimelineState(checkout)
+              const userLink = getUserLink?.(checkout)
 
               return (
                 <article
@@ -414,10 +504,7 @@ function MyCheckoutsPage() {
                   className={`equipment-card ${overdue ? 'equipment-card--overdue' : ''}`}
                 >
                   <div className="equipment-card__layout equipment-card__layout--media-first">
-                    {renderEquipmentMedia(
-                      checkout.equipment.imageUrl,
-                      checkout.equipment.name,
-                    )}
+                    {renderEquipmentMedia(checkout.equipment.imageUrl, checkout.equipment.name)}
 
                     <div className="equipment-card__main">
                       <div className="equipment-card__eyebrow">
@@ -452,11 +539,34 @@ function MyCheckoutsPage() {
                         </div>
                       </div>
 
+                      {showUserColumn && (
+                        <div className="inventory-status-context">
+                          <span className="inventory-status-context__label">{t.common.user}</span>
+                          {userLink ? (
+                            <Link to={userLink} className="context-link context-link--stack">
+                              <strong className="inventory-status-context__value">
+                                {checkout.user.name}
+                              </strong>
+                              <span className="inventory-status-context__meta">
+                                {checkout.user.email}
+                              </span>
+                            </Link>
+                          ) : (
+                            <>
+                              <strong className="inventory-status-context__value">
+                                {checkout.user.name}
+                              </strong>
+                              <span className="inventory-status-context__meta">
+                                {checkout.user.email}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                       <div className="equipment-meta">
                         <div className="equipment-meta__item">
-                          <span className="equipment-meta__label">
-                            {t.checkouts.checkedOutAt}
-                          </span>
+                          <span className="equipment-meta__label">{t.checkouts.checkedOutAt}</span>
                           <span className="equipment-meta__value">
                             {formatDateTime(checkout.checkedOutAt, language)}
                           </span>
@@ -470,9 +580,7 @@ function MyCheckoutsPage() {
                         </div>
 
                         <div className="equipment-meta__item">
-                          <span className="equipment-meta__label">
-                            {t.checkouts.returnedAt}
-                          </span>
+                          <span className="equipment-meta__label">{t.checkouts.returnedAt}</span>
                           <span className="equipment-meta__value">
                             {checkout.returnedAt
                               ? formatDateTime(checkout.returnedAt, language)
@@ -493,9 +601,7 @@ function MyCheckoutsPage() {
 
                       {checkout.note && (
                         <div className="equipment-description">
-                          <span className="equipment-description__label">
-                            {t.checkouts.note}
-                          </span>
+                          <span className="equipment-description__label">{t.checkouts.note}</span>
                           <p className="equipment-description__text">{checkout.note}</p>
                         </div>
                       )}
@@ -508,8 +614,6 @@ function MyCheckoutsPage() {
           </div>
         </section>
       )}
-    </div>
+    </>
   )
 }
-
-export default MyCheckoutsPage

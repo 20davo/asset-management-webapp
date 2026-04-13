@@ -11,6 +11,7 @@
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public string? ActiveCheckoutUserName { get; set; }
+        public DateTime? ActiveCheckoutDueAt { get; set; }
         public string? MaintenanceByUserName { get; set; }
     }
 }

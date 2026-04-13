@@ -8,6 +8,7 @@ export interface EquipmentListItem {
   status: string
   createdAt: string
   activeCheckoutUserName: string | null
+  activeCheckoutDueAt: string | null
   maintenanceByUserName: string | null
 }
 
@@ -42,6 +43,7 @@ export interface EquipmentDetails {
 
 export interface CreateCheckoutRequest {
   dueAt: string
+  assignedUserId?: number
   note?: string
 }
 
