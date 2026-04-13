@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   createEquipment,
@@ -12,8 +12,11 @@ import { useAuth } from '../context/AuthContext'
 import type { EquipmentListItem } from '../types/equipment'
 import {
   formatDate,
+  formatDateTime,
   getStatusBadgeClass,
   getStatusLabel,
+  isCheckoutDueSoon,
+  isCheckoutOverdue,
 } from '../utils/presentation'
 import { useLanguage } from '../context/LanguageContext'
 import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
@@ -41,6 +44,7 @@ const emptyForm: EquipmentFormState = {
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 
 type InventoryActionKind = 'edit' | 'maintenance' | 'available' | 'delete'
+type InventorySort = 'name' | 'newest' | 'oldest'
 
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -80,6 +84,10 @@ function EquipmentListPage() {
   const [statusChangingEquipmentId, setStatusChangingEquipmentId] = useState<number | null>(null)
   const [inventoryView, setInventoryView] = useState<'cards' | 'list'>('list')
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [sortBy, setSortBy] = useState<InventorySort>('name')
 
   async function loadEquipments() {
     try {
@@ -321,6 +329,65 @@ function EquipmentListPage() {
     (left, right) =>
       new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   )[0]
+  const categories = useMemo(
+    () =>
+      [...new Set(equipments.map((equipment) => equipment.category))]
+        .filter((category) => category.trim().length > 0)
+        .sort((left, right) => left.localeCompare(right, language)),
+    [equipments, language],
+  )
+  const filteredEquipments = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+
+    const result = equipments.filter((equipment) => {
+      const matchesSearch =
+        normalizedQuery.length === 0
+          ? true
+          : [
+              equipment.name,
+              equipment.category,
+              equipment.serialNumber,
+              equipment.description ?? '',
+              equipment.activeCheckoutUserName ?? '',
+              equipment.maintenanceByUserName ?? '',
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(normalizedQuery)
+
+      const matchesStatus =
+        statusFilter === 'all' ? true : equipment.status === statusFilter
+      const matchesCategory =
+        categoryFilter === 'all' ? true : equipment.category === categoryFilter
+
+      return matchesSearch && matchesStatus && matchesCategory
+    })
+
+    result.sort((left, right) => {
+      switch (sortBy) {
+        case 'newest':
+          return (
+            new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+          )
+        case 'oldest':
+          return (
+            new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+          )
+        case 'name':
+        default:
+          return left.name.localeCompare(right.name, language)
+      }
+    })
+
+    return result
+  }, [categoryFilter, equipments, language, searchQuery, sortBy, statusFilter])
+
+  function resetFilters() {
+    setSearchQuery('')
+    setStatusFilter('all')
+    setCategoryFilter('all')
+    setSortBy('name')
+  }
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
     return (
@@ -337,18 +404,21 @@ function EquipmentListPage() {
   }
 
   function getStatusContext(equipment: EquipmentListItem) {
-    if (!isAdmin) {
-      return null
-    }
+    const isCurrentUserAssignee =
+      !!user?.name &&
+      equipment.activeCheckoutUserName?.trim().toLocaleLowerCase(language) ===
+        user.name.trim().toLocaleLowerCase(language)
 
     if (equipment.status === 'CheckedOut') {
       return {
         label: t.inventory.checkedOutBy,
-        value: equipment.activeCheckoutUserName || t.inventory.actorUnknown,
+        value: isCurrentUserAssignee
+          ? t.common.me
+          : equipment.activeCheckoutUserName || t.inventory.actorUnknown,
       }
     }
 
-    if (equipment.status === 'Maintenance') {
+    if (isAdmin && equipment.status === 'Maintenance') {
       return {
         label: t.inventory.maintenanceBy,
         value: equipment.maintenanceByUserName || t.inventory.actorUnknown,
@@ -356,6 +426,34 @@ function EquipmentListPage() {
     }
 
     return null
+  }
+
+  function getDueState(dueAt: string | null) {
+    if (!dueAt) {
+      return null
+    }
+
+    if (isCheckoutOverdue(dueAt, null)) {
+      return {
+        pillClass: 'timeline-pill timeline-pill--danger',
+        pillLabel: t.checkouts.overdueBadge,
+        detailLabel: t.details.overduePrefix,
+      }
+    }
+
+    if (isCheckoutDueSoon(dueAt, null)) {
+      return {
+        pillClass: 'timeline-pill timeline-pill--warning',
+        pillLabel: t.checkouts.dueSoonBadge,
+        detailLabel: t.details.dueSoonPrefix,
+      }
+    }
+
+    return {
+      pillClass: 'timeline-pill',
+      pillLabel: t.details.deadlinePrefix,
+      detailLabel: t.details.deadlinePrefix,
+    }
   }
 
   function renderActionIcon(kind: InventoryActionKind) {
@@ -540,6 +638,7 @@ function EquipmentListPage() {
 
   function renderEquipmentCard(equipment: EquipmentListItem) {
     const statusContext = getStatusContext(equipment)
+    const dueState = getDueState(equipment.activeCheckoutDueAt)
 
     return (
       <article key={equipment.id} className="equipment-card">
@@ -673,7 +772,9 @@ function EquipmentListPage() {
             </div>
           </form>
         ) : (
-          <div className="equipment-card__layout">
+          <div className="equipment-card__layout equipment-card__layout--media-first">
+            {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
+
             <div className="equipment-card__main">
               <div className="equipment-card__eyebrow">
                 <span className="equipment-card__serial">SN {equipment.serialNumber}</span>
@@ -685,7 +786,12 @@ function EquipmentListPage() {
               <div className="equipment-card__header">
                 <div className="equipment-card__title-group">
                   <h3 className="equipment-card__title-small">{equipment.name}</h3>
-                  <p className="equipment-card__subtitle">{equipment.category}</p>
+                  <div className="equipment-card__signal-row">
+                    <span className="timeline-pill">{equipment.category}</span>
+                    {dueState && (
+                      <span className={dueState.pillClass}>{dueState.pillLabel}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -697,21 +803,31 @@ function EquipmentListPage() {
                   <strong className="inventory-status-context__value">
                     {statusContext.value}
                   </strong>
+                  {equipment.activeCheckoutDueAt && (
+                    <span className="inventory-status-context__meta">
+                      {dueState?.detailLabel}:{' '}
+                      {formatDateTime(equipment.activeCheckoutDueAt, language)}
+                    </span>
+                  )}
                 </div>
               )}
 
               <div className="equipment-meta">
-                <div className="equipment-meta__item">
-                  <span className="equipment-meta__label">{t.inventory.category}</span>
-                  <span className="equipment-meta__value">{equipment.category}</span>
-                </div>
-
                 <div className="equipment-meta__item">
                   <span className="equipment-meta__label">{t.inventory.recordedAt}</span>
                   <span className="equipment-meta__value">
                     {formatDate(equipment.createdAt, language)}
                   </span>
                 </div>
+
+                {equipment.activeCheckoutDueAt && (
+                  <div className="equipment-meta__item">
+                    <span className="equipment-meta__label">{t.details.deadlinePrefix}</span>
+                    <span className="equipment-meta__value">
+                      {formatDateTime(equipment.activeCheckoutDueAt, language)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {equipment.description && (
@@ -727,8 +843,6 @@ function EquipmentListPage() {
                 {renderInventoryActions(equipment, { shortLabels: true })}
               </div>
             </div>
-
-            {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
           </div>
         )}
       </article>
@@ -932,6 +1046,73 @@ function EquipmentListPage() {
         </section>
       )}
 
+      <section className="section-card section-card--compact filter-panel">
+        <div className="filter-panel__grid">
+          <div className="form-field">
+            <label htmlFor="inventory-search">{t.common.search}</label>
+            <input
+              id="inventory-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t.inventory.searchPlaceholder}
+            />
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="inventory-status-filter">{t.inventory.statusFilterLabel}</label>
+            <select
+              id="inventory-status-filter"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="all">{t.inventory.allStatuses}</option>
+              <option value="Available">{t.inventory.available}</option>
+              <option value="CheckedOut">{t.inventory.checkedOut}</option>
+              <option value="Maintenance">{t.inventory.maintenance}</option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="inventory-category-filter">{t.inventory.categoryFilterLabel}</label>
+            <select
+              id="inventory-category-filter"
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+            >
+              <option value="all">{t.inventory.allCategories}</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="inventory-sort">{t.inventory.sortByLabel}</label>
+            <select
+              id="inventory-sort"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as InventorySort)}
+            >
+              <option value="name">{t.inventory.sortByName}</option>
+              <option value="newest">{t.inventory.sortByNewest}</option>
+              <option value="oldest">{t.inventory.sortByOldest}</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="filter-panel__footer">
+          <p className="filter-panel__summary">
+            {filteredEquipments.length} / {equipments.length}
+          </p>
+          <button type="button" className="button-secondary" onClick={resetFilters}>
+            {t.common.clearFilters}
+          </button>
+        </div>
+      </section>
+
       <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
@@ -968,6 +1149,11 @@ function EquipmentListPage() {
               <h3>{t.inventory.emptyTitle}</h3>
               <p>{t.inventory.emptyText}</p>
             </div>
+          ) : filteredEquipments.length === 0 ? (
+            <div className="empty-state">
+              <h3>{t.inventory.noResultsTitle}</h3>
+              <p>{t.inventory.noResultsText}</p>
+            </div>
           ) : inventoryView === 'list' ? (
             <div
               className={`data-list data-list--inventory${
@@ -976,9 +1162,7 @@ function EquipmentListPage() {
             >
               <div className="data-list__header">
                 <span className="data-list__heading">{t.common.asset}</span>
-                {isAdmin && (
-                  <span className="data-list__heading">{t.inventory.assignee}</span>
-                )}
+                <span className="data-list__heading">{t.inventory.assignee}</span>
                 <span className="data-list__heading">{t.inventory.serial}</span>
                 <span className="data-list__heading">{t.common.status}</span>
                 <span className="data-list__heading">{t.inventory.recordedAt}</span>
@@ -987,22 +1171,24 @@ function EquipmentListPage() {
                 </span>
               </div>
 
-              {equipments.map((equipment) =>
-                editingEquipmentId === equipment.id ? (
+              {filteredEquipments.map((equipment) => {
+                const dueState = getDueState(equipment.activeCheckoutDueAt)
+
+                return editingEquipmentId === equipment.id ? (
                   renderEquipmentCard(equipment)
                 ) : (
                   <article key={equipment.id} className="data-list__row">
                     <div className="data-list__cell data-list__cell--primary">
                       <div className="data-list__asset">
-                      <div className="data-list__thumb">
-                        <ProtectedAssetImage
-                          imageUrl={equipment.imageUrl}
-                          alt={equipment.name}
-                          className="data-list__thumb-image"
-                          placeholderClassName="data-list__thumb-placeholder"
-                          placeholderText={t.common.noImage}
-                        />
-                      </div>
+                        <div className="data-list__thumb">
+                          <ProtectedAssetImage
+                            imageUrl={equipment.imageUrl}
+                            alt={equipment.name}
+                            className="data-list__thumb-image"
+                            placeholderClassName="data-list__thumb-placeholder"
+                            placeholderText={t.common.noImage}
+                          />
+                        </div>
 
                         <div className="data-list__asset-copy">
                           <strong className="data-list__primary-text">{equipment.name}</strong>
@@ -1016,23 +1202,27 @@ function EquipmentListPage() {
                       </div>
                     </div>
 
-                    {isAdmin && (
-                      <div className="data-list__cell data-list__cell--context">
-                        <span className="data-list__mobile-label">{t.inventory.assignee}</span>
-                        {getStatusContext(equipment) ? (
-                          <div className="data-list__context-stack">
-                            <span className="data-list__context-label">
-                              {getStatusContext(equipment)?.label}
+                    <div className="data-list__cell data-list__cell--context">
+                      <span className="data-list__mobile-label">{t.inventory.assignee}</span>
+                      {getStatusContext(equipment) ? (
+                        <div className="data-list__context-stack">
+                          <span className="data-list__context-label">
+                            {getStatusContext(equipment)?.label}
+                          </span>
+                          <strong className="data-list__context-name">
+                            {getStatusContext(equipment)?.value}
+                          </strong>
+                          {equipment.activeCheckoutDueAt && (
+                            <span className="data-list__context-value">
+                              {dueState?.detailLabel}:{' '}
+                              {formatDateTime(equipment.activeCheckoutDueAt, language)}
                             </span>
-                            <strong className="data-list__context-name">
-                              {getStatusContext(equipment)?.value}
-                            </strong>
-                          </div>
-                        ) : (
-                          <span className="data-list__context-placeholder">-</span>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      ) : (
+                        <span className="data-list__context-placeholder">-</span>
+                      )}
+                    </div>
 
                     <div className="data-list__cell">
                       <span className="data-list__mobile-label">{t.inventory.serial}</span>
@@ -1041,9 +1231,14 @@ function EquipmentListPage() {
 
                     <div className="data-list__cell">
                       <span className="data-list__mobile-label">{t.common.status}</span>
-                      <span className={getStatusBadgeClass(equipment.status)}>
-                        {getStatusLabel(equipment.status, language)}
-                      </span>
+                      <div className="data-list__status-stack">
+                        <span className={getStatusBadgeClass(equipment.status)}>
+                          {getStatusLabel(equipment.status, language)}
+                        </span>
+                        {equipment.activeCheckoutDueAt && (
+                          <span className={dueState?.pillClass}>{dueState?.pillLabel}</span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="data-list__cell">
@@ -1059,11 +1254,11 @@ function EquipmentListPage() {
                       </div>
                     </div>
                   </article>
-                ),
-              )}
+                )
+              })}
             </div>
           ) : (
-            <div className="equipment-list">{equipments.map(renderEquipmentCard)}</div>
+            <div className="equipment-list">{filteredEquipments.map(renderEquipmentCard)}</div>
           )}
       </section>
     </div>

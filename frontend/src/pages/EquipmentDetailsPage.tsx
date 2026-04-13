@@ -7,13 +7,17 @@ import {
   markEquipmentMaintenance,
   returnEquipment,
 } from '../api/equipmentApi'
+import { getUsers } from '../api/userApi'
 import { useAuth } from '../context/AuthContext'
 import type { EquipmentDetails } from '../types/equipment'
+import type { ManagedUser } from '../types/user'
 import {
   formatDate,
   formatDateTime,
   getStatusBadgeClass,
   getStatusLabel,
+  isCheckoutDueSoon,
+  isCheckoutOverdue,
 } from '../utils/presentation'
 import { useLanguage } from '../context/LanguageContext'
 import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
@@ -33,8 +37,10 @@ function EquipmentDetailsPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { language, t } = useLanguage()
+  const isAdminUser = user?.role === 'Admin'
 
   const [equipment, setEquipment] = useState<EquipmentDetails | null>(null)
+  const [assignableUsers, setAssignableUsers] = useState<ManagedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -42,9 +48,11 @@ function EquipmentDetailsPage() {
   const [isStatusSubmitting, setIsStatusSubmitting] = useState(false)
 
   const [checkoutForm, setCheckoutForm] = useState({
+    assignedUserId: '',
     dueAt: formatDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)),
     note: '',
   })
+  const [minimumDueAt, setMinimumDueAt] = useState(formatDateTimeLocal(new Date()))
 
   const [returnNote, setReturnNote] = useState('')
 
@@ -71,6 +79,32 @@ function EquipmentDetailsPage() {
     loadEquipmentDetails()
   }, [id])
 
+  useEffect(() => {
+    if (!isAdminUser) {
+      setAssignableUsers([])
+      return
+    }
+
+    async function loadAssignableUsers() {
+      try {
+        const users = await getUsers()
+        const eligibleUsers = users.filter(
+          (candidate) => candidate.role === 'User' && candidate.id !== user?.id,
+        )
+
+        setAssignableUsers(eligibleUsers)
+        setCheckoutForm((prev) => ({
+          ...prev,
+          assignedUserId: eligibleUsers[0]?.id ? String(eligibleUsers[0].id) : '',
+        }))
+      } catch {
+        setAssignableUsers([])
+      }
+    }
+
+    void loadAssignableUsers()
+  }, [isAdminUser, user?.id])
+
   async function handleCheckoutSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -81,15 +115,22 @@ function EquipmentDetailsPage() {
     setErrorMessage('')
     setSuccessMessage('')
     setIsSubmitting(true)
+    setMinimumDueAt(formatDateTimeLocal(new Date()))
 
     try {
+      const assignedUserId = isAdminUser ? Number(checkoutForm.assignedUserId) : undefined
+
       await checkoutEquipment(Number(id), {
+        assignedUserId: isAdminUser ? assignedUserId : undefined,
         dueAt: new Date(checkoutForm.dueAt).toISOString(),
         note: checkoutForm.note.trim() || undefined,
       })
 
-      setSuccessMessage(t.details.checkoutSuccess)
+      setSuccessMessage(
+        isAdminUser ? t.details.assignSuccess : t.details.checkoutSuccess,
+      )
       setCheckoutForm({
+        assignedUserId: assignableUsers[0]?.id ? String(assignableUsers[0].id) : '',
         dueAt: formatDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)),
         note: '',
       })
@@ -186,7 +227,6 @@ function EquipmentDetailsPage() {
     return <p className="form-error">{t.details.notFound}</p>
   }
 
-  const isAdminUser = user?.role === 'Admin'
   const canCheckoutNow = equipment.status === 'Available'
   const canReturnNow = equipment.canReturn
   const latestCheckoutEntry = equipment.checkouts[0]
@@ -197,6 +237,13 @@ function EquipmentDetailsPage() {
     activeCheckoutEntry?.dueAt ?? equipment.activeCheckoutDueAt ?? null
   const lastMovementAt =
     latestCheckoutEntry?.checkedOutAt ?? equipment.lastCheckedOutAt ?? null
+  const activeCheckoutOverdue = activeCheckoutDueAt
+    ? isCheckoutOverdue(activeCheckoutDueAt, null)
+    : false
+  const activeCheckoutDueSoon =
+    activeCheckoutDueAt && !activeCheckoutOverdue
+      ? isCheckoutDueSoon(activeCheckoutDueAt, null)
+      : false
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
     return (
@@ -225,17 +272,37 @@ function EquipmentDetailsPage() {
         <div className="page-hero__content">
           <span className="page-kicker">{t.details.heroKicker}</span>
           <h1 className="page-title">{equipment.name}</h1>
-          <p className="page-subtitle">{`${equipment.category} - ${t.details.heroText}`}</p>
+          <p className="page-subtitle">{t.details.heroText}</p>
         </div>
 
         <div className="page-hero__panel">
-          <span className={getStatusBadgeClass(equipment.status)}>
-            {getStatusLabel(equipment.status, language)}
-          </span>
-          <strong className="page-hero__panel-value">{equipment.serialNumber}</strong>
+          <span className="page-hero__panel-label">{t.details.activeUserLabel}</span>
+          <strong className="page-hero__panel-value">
+            {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
+          </strong>
           <p className="page-hero__panel-text">
-            {t.details.recorded}: {formatDate(equipment.createdAt, language)}
+            {activeCheckoutDueAt
+              ? `${activeCheckoutOverdue
+                  ? t.details.overduePrefix
+                  : activeCheckoutDueSoon
+                    ? t.details.dueSoonPrefix
+                    : t.details.deadlinePrefix}: ${formatDateTime(activeCheckoutDueAt, language)}`
+              : t.details.notIssued}
           </p>
+          <div className="page-hero__panel-meta">
+            <div className="page-hero__panel-meta-item">
+              <span className="page-hero__panel-label">{t.details.status}</span>
+              <strong>{getStatusLabel(equipment.status, language)}</strong>
+            </div>
+            <div className="page-hero__panel-meta-item">
+              <span className="page-hero__panel-label">{t.details.lastEvent}</span>
+              <strong>
+                {lastMovementAt
+                  ? formatDateTime(lastMovementAt, language)
+                  : t.details.noHistoryNote}
+              </strong>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -252,7 +319,13 @@ function EquipmentDetailsPage() {
           </strong>
           <span className="stat-card__note">
             {activeCheckoutDueAt
-              ? `${t.details.deadlinePrefix}: ${formatDateTime(activeCheckoutDueAt, language)}`
+              ? `${
+                  activeCheckoutOverdue
+                    ? t.details.overduePrefix
+                    : activeCheckoutDueSoon
+                      ? t.details.dueSoonPrefix
+                      : t.details.deadlinePrefix
+                }: ${formatDateTime(activeCheckoutDueAt, language)}`
               : t.details.notIssued}
           </span>
         </article>
@@ -277,42 +350,73 @@ function EquipmentDetailsPage() {
                 <h2 className="equipment-card__title">{t.details.title}</h2>
                 <p className="equipment-card__subtitle">{t.details.subtitle}</p>
               </div>
-
-              <span className={getStatusBadgeClass(equipment.status)}>
-                {getStatusLabel(equipment.status, language)}
-              </span>
             </div>
 
-            <div className="equipment-meta">
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">{t.details.category}</span>
-                <span className="equipment-meta__value">{equipment.category}</span>
-              </div>
-
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">{t.details.serial}</span>
-                <span className="equipment-meta__value">{equipment.serialNumber}</span>
-              </div>
-
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">{t.details.createdAt}</span>
-                <span className="equipment-meta__value">
-                  {formatDateTime(equipment.createdAt, language)}
-                </span>
-              </div>
-            </div>
-
-            <div className="asset-image-field">
-              <span className="asset-image-field__label">{t.common.image}</span>
+            <div className="details-showcase">
               {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
-            </div>
 
-            {equipment.description && (
-              <div className="equipment-description">
-                <span className="equipment-description__label">{t.details.description}</span>
-                <p className="equipment-description__text">{equipment.description}</p>
+              <div className="details-showcase__content">
+                <div className="equipment-card__title-group">
+                  <h3 className="equipment-card__title-small">{equipment.name}</h3>
+                  <p className="equipment-card__subtitle">
+                    {equipment.description || t.details.subtitle}
+                  </p>
+                </div>
+
+                <div className="equipment-card__signal-row">
+                  <span className="timeline-pill">{equipment.category}</span>
+                  <span className={getStatusBadgeClass(equipment.status)}>
+                    {getStatusLabel(equipment.status, language)}
+                  </span>
+                  {activeCheckoutOverdue && (
+                    <span className="timeline-pill timeline-pill--danger">
+                      {t.checkouts.overdueBadge}
+                    </span>
+                  )}
+                  {activeCheckoutDueSoon && (
+                    <span className="timeline-pill timeline-pill--warning">
+                      {t.checkouts.dueSoonBadge}
+                    </span>
+                  )}
+                </div>
+
+                <div className="equipment-meta">
+                  <div className="equipment-meta__item">
+                    <span className="equipment-meta__label">{t.details.serial}</span>
+                    <span className="equipment-meta__value">{equipment.serialNumber}</span>
+                  </div>
+
+                  <div className="equipment-meta__item">
+                    <span className="equipment-meta__label">{t.details.recorded}</span>
+                    <span className="equipment-meta__value">
+                      {formatDateTime(equipment.createdAt, language)}
+                    </span>
+                  </div>
+
+                  <div className="equipment-meta__item">
+                    <span className="equipment-meta__label">{t.details.activeUserLabel}</span>
+                    <span className="equipment-meta__value">
+                      {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
+                    </span>
+                  </div>
+
+                  {activeCheckoutDueAt && (
+                    <div className="equipment-meta__item">
+                      <span className="equipment-meta__label">
+                        {activeCheckoutOverdue
+                          ? t.details.overduePrefix
+                          : activeCheckoutDueSoon
+                            ? t.details.dueSoonPrefix
+                            : t.details.deadlinePrefix}
+                      </span>
+                      <span className="equipment-meta__value">
+                        {formatDateTime(activeCheckoutDueAt, language)}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
 
             {isAdminUser && (
               <div className="equipment-card__actions">
@@ -346,18 +450,52 @@ function EquipmentDetailsPage() {
               <div className="section-heading section-heading--tight">
                 <div>
                   <span className="section-heading__eyebrow">{t.details.checkoutKicker}</span>
-                  <h3 className="section-heading__title">{t.details.checkoutTitle}</h3>
+                  <h3 className="section-heading__title">
+                    {isAdminUser ? t.details.assignTitle : t.details.checkoutTitle}
+                  </h3>
                 </div>
-                <p className="section-heading__text">{t.details.checkoutText}</p>
+                <p className="section-heading__text">
+                  {isAdminUser ? t.details.assignText : t.details.checkoutText}
+                </p>
               </div>
 
               <form className="auth-form" onSubmit={handleCheckoutSubmit}>
+                {isAdminUser && (
+                  <div className="form-field">
+                    <label htmlFor="assignedUserId">{t.details.assignUserLabel}</label>
+                    <select
+                      id="assignedUserId"
+                      value={checkoutForm.assignedUserId}
+                      onChange={(event) =>
+                        setCheckoutForm((prev) => ({
+                          ...prev,
+                          assignedUserId: event.target.value,
+                        }))
+                      }
+                      required
+                      disabled={assignableUsers.length === 0}
+                    >
+                      {assignableUsers.length === 0 ? (
+                        <option value="">{t.details.noAssignableUsers}</option>
+                      ) : (
+                        assignableUsers.map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            {candidate.name} ({candidate.email})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                )}
+
                 <div className="form-field">
                   <label htmlFor="dueAt">{t.details.dueAt}</label>
                   <input
                     id="dueAt"
                     type="datetime-local"
                     value={checkoutForm.dueAt}
+                    min={minimumDueAt}
+                    onFocus={() => setMinimumDueAt(formatDateTimeLocal(new Date()))}
                     onChange={(event) =>
                       setCheckoutForm((prev) => ({
                         ...prev,
@@ -388,9 +526,13 @@ function EquipmentDetailsPage() {
                   <button
                     type="submit"
                     className="form-submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (isAdminUser && assignableUsers.length === 0)}
                   >
-                    {isSubmitting ? t.common.saveInProgress : t.details.checkoutSubmit}
+                    {isSubmitting
+                      ? t.common.saveInProgress
+                      : isAdminUser
+                        ? t.details.assignSubmit
+                        : t.details.checkoutSubmit}
                   </button>
                 </div>
               </form>
@@ -453,7 +595,14 @@ function EquipmentDetailsPage() {
                     <div key={checkout.id} className="checkout-history-item">
                       <div className="checkout-history-item__header">
                         <div>
-                          <h4>{checkout.userName}</h4>
+                          <h4>
+                            <Link
+                              to={`/users/${checkout.userId}`}
+                              className="context-link"
+                            >
+                              <span className="context-link__primary">{checkout.userName}</span>
+                            </Link>
+                          </h4>
                           <p>{checkout.userEmail}</p>
                         </div>
                         <span className="timeline-pill">
@@ -513,36 +662,6 @@ function EquipmentDetailsPage() {
                 <strong>{getStatusLabel(equipment.status, language)}</strong>
               </div>
               <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.category}</span>
-                <strong>{equipment.category}</strong>
-              </div>
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.activeUserLabel}</span>
-                <strong>
-                  {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
-                </strong>
-              </div>
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.lastEvent}</span>
-                <strong>
-                  {lastMovementAt
-                    ? formatDateTime(lastMovementAt, language)
-                    : t.details.noHistoryNote}
-                </strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-card section-card--compact">
-            <div className="section-heading section-heading--tight">
-              <div>
-                <span className="section-heading__eyebrow">{t.details.usageKicker}</span>
-                <h3 className="section-heading__title">{t.details.usageTitle}</h3>
-              </div>
-            </div>
-
-            <div className="info-stack">
-              <div className="info-stack__item">
                 <span className="info-stack__label">{t.details.issueability}</span>
                 <strong>
                   {canCheckoutNow ? t.details.issueabilityYes : t.details.issueabilityNo}
@@ -554,6 +673,44 @@ function EquipmentDetailsPage() {
                   {canReturnNow ? t.details.returnabilityYes : t.details.returnabilityNo}
                 </strong>
               </div>
+              <div className="info-stack__item">
+                <span className="info-stack__label">{t.details.lastEvent}</span>
+                <strong>
+                  {lastMovementAt
+                    ? formatDateTime(lastMovementAt, language)
+                    : t.details.noHistoryNote}
+                </strong>
+              </div>
+              {isAdminUser && activeCheckoutEntry?.userId && (
+                <div className="info-stack__item">
+                  <span className="info-stack__label">{t.details.activeUserLabel}</span>
+                  <strong>{activeCheckoutUserName}</strong>
+                  <Link
+                    to={`/users/${activeCheckoutEntry.userId}`}
+                    className="context-link"
+                  >
+                    {t.details.openUserHistory}
+                  </Link>
+                </div>
+              )}
+              {!isAdminUser && activeCheckoutDueAt && (
+                <div className="info-stack__item">
+                  <span className="info-stack__label">
+                    {activeCheckoutOverdue
+                      ? t.details.overduePrefix
+                      : activeCheckoutDueSoon
+                        ? t.details.dueSoonPrefix
+                        : t.details.deadlinePrefix}
+                  </span>
+                  <strong>{formatDateTime(activeCheckoutDueAt, language)}</strong>
+                </div>
+              )}
+              {!isAdminUser && !activeCheckoutDueAt && (
+                <div className="info-stack__item">
+                  <span className="info-stack__label">{t.details.activeUserLabel}</span>
+                  <strong>{t.details.unassigned}</strong>
+                </div>
+              )}
             </div>
           </section>
         </aside>

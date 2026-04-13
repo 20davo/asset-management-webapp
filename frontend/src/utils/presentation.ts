@@ -1,4 +1,4 @@
-import type { Language } from '../context/LanguageContext'
+﻿import type { Language } from '../context/LanguageContext'
 import type { UserRole } from '../types/auth'
 
 function getLocale(language: Language) {
@@ -86,4 +86,23 @@ export function isCheckoutOverdue(dueAt: string, returnedAt: string | null) {
   }
 
   return new Date(dueAt).getTime() < Date.now()
+}
+
+export function isCheckoutDueSoon(
+  dueAt: string,
+  returnedAt: string | null,
+  warningWindowHours = 48,
+) {
+  if (returnedAt) {
+    return false
+  }
+
+  const dueTime = new Date(dueAt).getTime()
+
+  if (Number.isNaN(dueTime) || dueTime < Date.now()) {
+    return false
+  }
+
+  const warningWindowMs = warningWindowHours * 60 * 60 * 1000
+  return dueTime - Date.now() <= warningWindowMs
 }
