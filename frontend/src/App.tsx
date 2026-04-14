@@ -10,7 +10,9 @@ import EquipmentListPage from './pages/EquipmentListPage'
 import LoginPage from './pages/LoginPage'
 import MyItemsPage from './pages/MyItemsPage'
 import NotFoundPage from './pages/NotFoundPage'
+import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
+import SettingsPage from './pages/SettingsPage'
 import UserDetailsPage from './pages/UserDetailsPage'
 import UsersPage from './pages/UsersPage'
 import { REGISTRATION_ENABLED } from './config/runtime'
@@ -104,6 +106,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <MyItemsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         }
       />
