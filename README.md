@@ -1,20 +1,32 @@
 # Asset Management Web App
 
-Internal asset management web application built with React, ASP.NET Core, and PostgreSQL for tracking company equipment, checkouts, availability, and maintenance.
+Internal asset management web application built with React, ASP.NET Core, and PostgreSQL for tracking company equipment, assignments, availability, and maintenance.
 
 ## Project overview
 
-This project is a full-stack demo for managing company assets in one place.
+This project is a full-stack demo for managing company equipment and assignments.
 
 Current core capabilities:
 
 - user login with JWT-based authentication
 - inventory overview for company equipment
-- equipment details with checkout history
-- user checkout and return flow
+- asset details with assignment opportunity and checkout history
+- user-facing `My Items` flow for current assets and closed history
+- admin pages for users, user details, and checkout activity
 - admin-only equipment creation, editing, deletion, and maintenance actions
+- admin assignment flow that assigns assets to regular users
 - protected equipment image uploads
+- profile and settings pages for the signed-in user
 - Docker-based local development and production-like demo workflows
+
+The app is currently closer to an internal equipment and assignment tracker than to a full enterprise asset lifecycle platform.
+
+Main concepts in the current UI:
+
+- `Inventory`: all company equipment
+- `My Items`: the signed-in user's current assets and closed history
+- `Users`: admin view of regular users and their assigned assets
+- `Checkout Log`: admin history of active assignments and closed returns
 
 ## Tech stack
 
@@ -148,6 +160,12 @@ Current behavior:
 - unknown routes show a dedicated not-found page only for authenticated users
 - visiting `/login` or `/register` while already logged in triggers an automatic logout
 
+Current signed-in navigation:
+
+- all signed-in users can access `Inventory`, `My Items`, `Profile`, and `Settings`
+- admins can also access `Users` and `Checkout Log`
+- the profile menu contains `Profile`, `Settings`, and `Logout`
+
 ### Registration behavior
 
 Registration is environment-controlled.
@@ -163,6 +181,52 @@ Production-like mode:
 - the register page is not available
 - guest navigation hides both login and register links for a cleaner closed-demo flow
 
+## App flows
+
+### User flow
+
+Regular users currently work mainly in these views:
+
+- `Inventory`: browse company equipment and open asset details
+- `My Items`: see currently assigned assets, due dates, and closed history
+- `Profile`: review signed-in account details
+- `Settings`: change language and preview the appearance toggle
+
+Regular users can:
+
+- view equipment
+- check out available equipment for themselves
+- return their own open items
+- review their own closed history
+
+### Admin flow
+
+Admins have everything regular users have, plus:
+
+- `Users`: list regular users and open user detail pages
+- `User details`: see a selected user's current assets and closed history
+- `Checkout Log`: review active assignments and closed returns
+- inventory create/edit/delete and maintenance actions
+- asset assignment to regular users
+
+Admins do not check out assets for themselves through the admin assignment flow. Instead, they assign available assets to regular users.
+
+## Main pages
+
+- `/`: inventory
+- `/equipment/:id`: asset details
+- `/my-items`: signed-in user's current assets and history
+- `/users`: admin user list
+- `/users/:userId`: admin user detail view
+- `/all-checkouts`: admin checkout log
+- `/profile`: signed-in user profile
+- `/settings`: signed-in user settings
+
+Legacy redirects still exist for:
+
+- `/my-checkouts` -> `/my-items`
+- `/users/:userId/checkouts` -> `/users/:userId`
+
 ## Image uploads
 
 Equipment images are no longer served as public static files.
@@ -173,6 +237,24 @@ Current behavior:
 - image URLs are resolved through authenticated API access
 - protected image loading uses the logged-in user token
 - unauthorized image requests follow the same session-expired flow as the rest of the app
+
+## Frontend state in URLs
+
+The main list pages now keep their search and view state in query parameters.
+
+This currently applies to:
+
+- inventory
+- checkout log
+- users
+- my items
+- user details
+
+Examples:
+
+- `/all-checkouts?state=overdue&view=list`
+- `/users?search=anna&sort=activity`
+- `/my-items?current-view=cards`
 
 ## Persistence
 
@@ -219,6 +301,7 @@ docker compose down -v
 - the backend applies EF Core migrations automatically on startup
 - a local bootstrap admin can be enabled from the root `.env` for development only
 - the frontend forms use explicit `autocomplete` values for better browser and password manager behavior
+- the default UI language fallback is English
 - the production-like stack is meant as a realistic demo path, not as a final production deployment
 
 ## Current limitations
@@ -228,4 +311,5 @@ The project is in a strong demo-ready state, but a few production-level decision
 - JWT is still stored in `localStorage`
 - forwarded headers currently trust all proxies when the feature is enabled
 - login rate limiting is currently IP-based
+- the light/dark appearance switch in settings is still a UI placeholder
 - the production-like Docker path is closer to deployment, but it is not yet a full final deployment setup with TLS, domain routing, and secret management

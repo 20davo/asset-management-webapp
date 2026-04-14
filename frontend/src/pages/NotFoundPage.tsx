@@ -1,4 +1,4 @@
-import { useLanguage } from '../context/LanguageContext'
+﻿import { useLanguage } from '../context/LanguageContext'
 
 function NotFoundPage() {
   const { language } = useLanguage()
@@ -6,16 +6,14 @@ function NotFoundPage() {
   const copy =
     language === 'en'
       ? {
-          kicker: 'Missing route',
-          title: 'This page could not be found.',
-          text:
-            'The address is not part of the current app, or the page may have moved.',
+          kicker: 'Not found',
+          title: 'This page is not available.',
+          text: 'The address is not valid, or the page has moved.',
         }
       : {
-          kicker: 'Hiányzó oldal',
-          title: 'Ez az oldal nem található.',
-          text:
-            'A beírt útvonal nem létezik, vagy az oldal már máshova került.',
+          kicker: 'Nem található',
+          title: 'Ez az oldal nem érhető el.',
+          text: 'A megadott cím nem létezik, vagy az oldal máshová került.',
         }
 
   return (
