@@ -713,6 +713,11 @@ button.navbar__user-trigger:hover {
   align-content: space-between;
 }
 
+.auth-aside__intro {
+  display: grid;
+  gap: 14px;
+}
+
 .auth-highlights {
   display: grid;
   gap: 14px;
@@ -1718,6 +1723,10 @@ button.navbar__user-trigger:hover {
   margin: 16px 0 18px;
 }
 
+.equipment-card__header--details {
+  margin: 0;
+}
+
 .equipment-card__media {
   display: flex;
   align-items: stretch;
@@ -1760,6 +1769,22 @@ button.navbar__user-trigger:hover {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.equipment-category-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(241, 245, 249, 0.96)),
+    rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .equipment-card__title {

@@ -809,10 +809,7 @@ function EquipmentListPage() {
                 <div className="equipment-card__title-group">
                   <h3 className="equipment-card__title-small">{equipment.name}</h3>
                   <div className="equipment-card__signal-row">
-                    <span className="timeline-pill">{equipment.category}</span>
-                    {dueState && (
-                      <span className={dueState.pillClass}>{dueState.pillLabel}</span>
-                    )}
+                    <span className="equipment-category-chip">{equipment.category}</span>
                   </div>
                 </div>
               </div>
@@ -825,6 +822,9 @@ function EquipmentListPage() {
                   <strong className="inventory-status-context__value">
                     {statusContext.value}
                   </strong>
+                  {dueState && (
+                    <span className={dueState.pillClass}>{dueState.pillLabel}</span>
+                  )}
                   {equipment.activeCheckoutDueAt && (
                     <span className="inventory-status-context__meta">
                       {dueState?.detailLabel}:{' '}

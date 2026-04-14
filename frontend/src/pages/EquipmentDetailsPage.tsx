@@ -12,7 +12,6 @@ import { useAuth } from '../context/AuthContext'
 import type { EquipmentDetails } from '../types/equipment'
 import type { ManagedUser } from '../types/user'
 import {
-  formatDate,
   formatDateTime,
   getStatusBadgeClass,
   getStatusLabel,
@@ -306,42 +305,6 @@ function EquipmentDetailsPage() {
         </div>
       </section>
 
-      <section className="stats-grid stats-grid--three">
-        <article className="stat-card">
-          <span className="stat-card__label">{t.details.totalCheckouts}</span>
-          <strong className="stat-card__value">{equipment.totalCheckoutCount}</strong>
-          <span className="stat-card__note">{t.details.totalCheckoutsNote}</span>
-        </article>
-        <article className="stat-card">
-          <span className="stat-card__label">{t.details.activeUser}</span>
-          <strong className="stat-card__value">
-            {activeCheckoutUserName ? activeCheckoutUserName : t.details.free}
-          </strong>
-          <span className="stat-card__note">
-            {activeCheckoutDueAt
-              ? `${
-                  activeCheckoutOverdue
-                    ? t.details.overduePrefix
-                    : activeCheckoutDueSoon
-                      ? t.details.dueSoonPrefix
-                      : t.details.deadlinePrefix
-                }: ${formatDateTime(activeCheckoutDueAt, language)}`
-              : t.details.notIssued}
-          </span>
-        </article>
-        <article className="stat-card">
-          <span className="stat-card__label">{t.details.lastMovement}</span>
-          <strong className="stat-card__value">
-            {lastMovementAt
-              ? formatDate(lastMovementAt, language)
-              : t.details.noHistory}
-          </strong>
-          <span className="stat-card__note">
-            {lastMovementAt ? t.details.latestEvent : t.details.noHistoryNote}
-          </span>
-        </article>
-      </section>
-
       <div className="details-layout">
         <div className="details-main">
           <section className="section-card">
@@ -356,18 +319,20 @@ function EquipmentDetailsPage() {
               {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
 
               <div className="details-showcase__content">
-                <div className="equipment-card__title-group">
-                  <h3 className="equipment-card__title-small">{equipment.name}</h3>
-                  <p className="equipment-card__subtitle">
-                    {equipment.description || t.details.subtitle}
-                  </p>
-                </div>
-
-                <div className="equipment-card__signal-row">
-                  <span className="timeline-pill">{equipment.category}</span>
+                <div className="equipment-card__header equipment-card__header--details">
+                  <div className="equipment-card__title-group">
+                    <h3 className="equipment-card__title-small">{equipment.name}</h3>
+                    {equipment.description && (
+                      <p className="equipment-card__subtitle">{equipment.description}</p>
+                    )}
+                  </div>
                   <span className={getStatusBadgeClass(equipment.status)}>
                     {getStatusLabel(equipment.status, language)}
                   </span>
+                </div>
+
+                <div className="equipment-card__signal-row">
+                  <span className="equipment-category-chip">{equipment.category}</span>
                   {activeCheckoutOverdue && (
                     <span className="timeline-pill timeline-pill--danger">
                       {t.checkouts.overdueBadge}
@@ -390,13 +355,6 @@ function EquipmentDetailsPage() {
                     <span className="equipment-meta__label">{t.details.recorded}</span>
                     <span className="equipment-meta__value">
                       {formatDateTime(equipment.createdAt, language)}
-                    </span>
-                  </div>
-
-                  <div className="equipment-meta__item">
-                    <span className="equipment-meta__label">{t.details.activeUserLabel}</span>
-                    <span className="equipment-meta__value">
-                      {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
                     </span>
                   </div>
 
@@ -656,63 +614,59 @@ function EquipmentDetailsPage() {
               </div>
             </div>
 
-            <div className="info-stack">
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.status}</span>
-                <strong>{getStatusLabel(equipment.status, language)}</strong>
-              </div>
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.issueability}</span>
-                <strong>
-                  {canCheckoutNow ? t.details.issueabilityYes : t.details.issueabilityNo}
-                </strong>
-              </div>
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.returnability}</span>
-                <strong>
-                  {canReturnNow ? t.details.returnabilityYes : t.details.returnabilityNo}
-                </strong>
-              </div>
-              <div className="info-stack__item">
-                <span className="info-stack__label">{t.details.lastEvent}</span>
-                <strong>
-                  {lastMovementAt
-                    ? formatDateTime(lastMovementAt, language)
-                    : t.details.noHistoryNote}
-                </strong>
-              </div>
-              {isAdminUser && activeCheckoutEntry?.userId && (
+              <div className="info-stack">
+                <div className="info-stack__item">
+                  <span className="info-stack__label">{t.details.totalCheckouts}</span>
+                  <strong>{equipment.totalCheckoutCount}</strong>
+                </div>
+                <div className="info-stack__item">
+                  <span className="info-stack__label">{t.details.issueability}</span>
+                  <strong>
+                    {canCheckoutNow ? t.details.issueabilityYes : t.details.issueabilityNo}
+                  </strong>
+                </div>
                 <div className="info-stack__item">
                   <span className="info-stack__label">{t.details.activeUserLabel}</span>
-                  <strong>{activeCheckoutUserName}</strong>
-                  <Link
-                    to={`/users/${activeCheckoutEntry.userId}`}
-                    className="context-link"
-                  >
-                    {t.details.openUserHistory}
-                  </Link>
+                  <strong>
+                    {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
+                  </strong>
+                  {isAdminUser && activeCheckoutEntry?.userId && (
+                    <Link
+                      to={`/users/${activeCheckoutEntry.userId}`}
+                      className="context-link"
+                    >
+                      {t.details.openUserHistory}
+                    </Link>
+                  )}
                 </div>
-              )}
-              {!isAdminUser && activeCheckoutDueAt && (
                 <div className="info-stack__item">
-                  <span className="info-stack__label">
-                    {activeCheckoutOverdue
-                      ? t.details.overduePrefix
-                      : activeCheckoutDueSoon
-                        ? t.details.dueSoonPrefix
-                        : t.details.deadlinePrefix}
-                  </span>
-                  <strong>{formatDateTime(activeCheckoutDueAt, language)}</strong>
+                  <span className="info-stack__label">{t.details.returnability}</span>
+                  <strong>
+                    {canReturnNow ? t.details.returnabilityYes : t.details.returnabilityNo}
+                  </strong>
                 </div>
-              )}
-              {!isAdminUser && !activeCheckoutDueAt && (
                 <div className="info-stack__item">
-                  <span className="info-stack__label">{t.details.activeUserLabel}</span>
-                  <strong>{t.details.unassigned}</strong>
+                  <span className="info-stack__label">{t.details.lastEvent}</span>
+                  <strong>
+                    {lastMovementAt
+                      ? formatDateTime(lastMovementAt, language)
+                      : t.details.noHistoryNote}
+                  </strong>
                 </div>
-              )}
-            </div>
-          </section>
+                {activeCheckoutDueAt && (
+                  <div className="info-stack__item">
+                    <span className="info-stack__label">
+                      {activeCheckoutOverdue
+                        ? t.details.overduePrefix
+                        : activeCheckoutDueSoon
+                          ? t.details.dueSoonPrefix
+                          : t.details.deadlinePrefix}
+                    </span>
+                    <strong>{formatDateTime(activeCheckoutDueAt, language)}</strong>
+                  </div>
+                )}
+              </div>
+            </section>
         </aside>
       </div>
     </div>
