@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ProtectedAssetImage } from './ProtectedAssetImage'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
@@ -10,9 +10,14 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
+import {
+  getEnumSearchParam,
+  getTextSearchParam,
+  setMergedSearchParams,
+} from '../utils/searchParams'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
-type CheckoutSort = 'recent' | 'dueSoon' | 'dueLate'
+type FilterMode = 'checkout' | 'equipment' | 'none'
 
 interface CheckoutCollectionViewProps {
   items: CheckoutItem[]
@@ -26,6 +31,8 @@ interface CheckoutCollectionViewProps {
   getUserLink?: (checkout: CheckoutItem) => string
   linkAssetNameOnly?: boolean
   compact?: boolean
+  queryKeyPrefix: string
+  filterMode?: FilterMode
 }
 
 function getCheckoutState(checkout: CheckoutItem): Exclude<CheckoutFilter, 'all'> {
@@ -70,12 +77,36 @@ export function CheckoutCollectionView({
   getUserLink,
   linkAssetNameOnly = false,
   compact = false,
+  queryKeyPrefix,
+  filterMode = 'checkout',
 }: CheckoutCollectionViewProps) {
   const { language, t } = useLanguage()
-  const [checkoutView, setCheckoutView] = useState<'cards' | 'list'>('list')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CheckoutFilter>('all')
-  const [sortBy, setSortBy] = useState<CheckoutSort>('recent')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const checkoutView = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-view`,
+    ['cards', 'list'] as const,
+    'list',
+  )
+  const searchQuery = getTextSearchParam(searchParams, `${queryKeyPrefix}-search`)
+  const checkoutStateFilter = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-state`,
+    ['all', 'active', 'overdue', 'closed'] as const,
+    'all',
+  )
+  const equipmentStatusFilter = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-status`,
+    ['all', 'Available', 'CheckedOut', 'Maintenance'] as const,
+    'all',
+  )
+  const sortBy = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-sort`,
+    ['recent', 'dueSoon', 'dueLate'] as const,
+    'recent',
+  )
 
   const activeCount = items.filter((checkout) => !checkout.returnedAt).length
   const overdueCount = items.filter((checkout) =>
@@ -88,8 +119,16 @@ export function CheckoutCollectionView({
 
     const result = items.filter((checkout) => {
       const checkoutState = getCheckoutState(checkout)
-      const matchesStatus =
-        statusFilter === 'all' ? true : checkoutState === statusFilter
+      const matchesFilter =
+        filterMode === 'checkout'
+          ? checkoutStateFilter === 'all'
+            ? true
+            : checkoutState === checkoutStateFilter
+          : filterMode === 'equipment'
+            ? equipmentStatusFilter === 'all'
+              ? true
+              : checkout.equipment.status === equipmentStatusFilter
+            : true
 
       const matchesSearch =
         normalizedQuery.length === 0
@@ -106,7 +145,7 @@ export function CheckoutCollectionView({
               .toLowerCase()
               .includes(normalizedQuery)
 
-      return matchesStatus && matchesSearch
+      return matchesFilter && matchesSearch
     })
 
     result.sort((left, right) => {
@@ -124,12 +163,16 @@ export function CheckoutCollectionView({
     })
 
     return result
-  }, [items, searchQuery, sortBy, statusFilter])
+  }, [checkoutStateFilter, equipmentStatusFilter, filterMode, items, searchQuery, sortBy])
 
   function resetFilters() {
-    setSearchQuery('')
-    setStatusFilter('all')
-    setSortBy('recent')
+    setMergedSearchParams(setSearchParams, {
+      [`${queryKeyPrefix}-search`]: null,
+      [`${queryKeyPrefix}-state`]: null,
+      [`${queryKeyPrefix}-status`]: null,
+      [`${queryKeyPrefix}-sort`]: null,
+      [`${queryKeyPrefix}-view`]: null,
+    })
   }
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
@@ -154,7 +197,11 @@ export function CheckoutCollectionView({
           className={`view-switch__button ${
             checkoutView === 'cards' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setCheckoutView('cards')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              [`${queryKeyPrefix}-view`]: 'cards',
+            })
+          }
         >
           {t.common.cardsView}
         </button>
@@ -163,7 +210,11 @@ export function CheckoutCollectionView({
           className={`view-switch__button ${
             checkoutView === 'list' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setCheckoutView('list')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              [`${queryKeyPrefix}-view`]: null,
+            })
+          }
         >
           {t.common.listView}
         </button>
@@ -244,17 +295,12 @@ export function CheckoutCollectionView({
           <h3>{emptyTitle}</h3>
           <p>{emptyText}</p>
         </div>
-      ) : filteredCheckouts.length === 0 ? (
-        <div className="empty-state">
-          <h3>{t.checkouts.noResultsTitle}</h3>
-          <p>{t.checkouts.noResultsText}</p>
-        </div>
-      ) : checkoutView === 'list' ? (
+      ) : (
         <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
             <div>
               <span className="section-heading__eyebrow">{heroKicker}</span>
-              <h2 className="section-heading__title">{compact ? heroTitle : heroTitle}</h2>
+              <h2 className="section-heading__title">{heroTitle}</h2>
             </div>
             <div className="section-heading__aside">
               <p className="section-heading__text">{heroText}</p>
@@ -270,33 +316,74 @@ export function CheckoutCollectionView({
                   id={`${heroTitle}-search`}
                   type="search"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(event) =>
+                    setMergedSearchParams(setSearchParams, {
+                      [`${queryKeyPrefix}-search`]: event.target.value.trim()
+                        ? event.target.value
+                        : null,
+                    })
+                  }
                   placeholder={searchPlaceholder}
                 />
               </div>
 
-              <div className="form-field">
-                <label htmlFor={`${heroTitle}-status-filter`}>
-                  {t.checkouts.statusFilterLabel}
-                </label>
-                <select
-                  id={`${heroTitle}-status-filter`}
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
-                >
-                  <option value="all">{t.checkouts.filterAll}</option>
-                  <option value="active">{t.checkouts.filterActive}</option>
-                  <option value="overdue">{t.checkouts.filterOverdue}</option>
-                  <option value="closed">{t.checkouts.filterClosed}</option>
-                </select>
-              </div>
+              {filterMode !== 'none' && (
+                <div className="form-field">
+                  <label htmlFor={`${heroTitle}-status-filter`}>
+                    {filterMode === 'equipment'
+                      ? t.common.status
+                      : t.checkouts.statusFilterLabel}
+                  </label>
+                  <select
+                    id={`${heroTitle}-status-filter`}
+                    value={
+                      filterMode === 'equipment'
+                        ? equipmentStatusFilter
+                        : checkoutStateFilter
+                    }
+                    onChange={(event) =>
+                      setMergedSearchParams(setSearchParams, {
+                        [`${queryKeyPrefix}-state`]:
+                          filterMode === 'checkout' && event.target.value !== 'all'
+                            ? event.target.value
+                            : null,
+                        [`${queryKeyPrefix}-status`]:
+                          filterMode === 'equipment' && event.target.value !== 'all'
+                            ? event.target.value
+                            : null,
+                      })
+                    }
+                  >
+                    {filterMode === 'checkout' ? (
+                      <>
+                        <option value="all">{t.checkouts.filterAll}</option>
+                        <option value="active">{t.checkouts.filterActive}</option>
+                        <option value="overdue">{t.checkouts.filterOverdue}</option>
+                        <option value="closed">{t.checkouts.filterClosed}</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="all">{t.inventory.allStatuses}</option>
+                        <option value="Available">{t.inventory.available}</option>
+                        <option value="CheckedOut">{t.inventory.checkedOut}</option>
+                        <option value="Maintenance">{t.inventory.maintenance}</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
 
               <div className="form-field">
                 <label htmlFor={`${heroTitle}-sort`}>{t.checkouts.sortByLabel}</label>
                 <select
                   id={`${heroTitle}-sort`}
                   value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
+                  onChange={(event) =>
+                    setMergedSearchParams(setSearchParams, {
+                      [`${queryKeyPrefix}-sort`]:
+                        event.target.value === 'recent' ? null : event.target.value,
+                    })
+                  }
                 >
                   <option value="recent">{t.checkouts.sortRecent}</option>
                   <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
@@ -314,6 +401,13 @@ export function CheckoutCollectionView({
               </button>
             </div>
           </section>
+
+          {filteredCheckouts.length === 0 ? (
+            <div className="empty-state">
+              <h3>{t.checkouts.noResultsTitle}</h3>
+              <p>{t.checkouts.noResultsText}</p>
+            </div>
+          ) : checkoutView === 'list' ? (
 
           <div
             className={`data-list ${
@@ -425,73 +519,7 @@ export function CheckoutCollectionView({
               )
             })}
           </div>
-        </section>
-      ) : (
-        <section className="inventory-stack">
-          <div className="section-heading section-heading--toolbar">
-            <div>
-              <span className="section-heading__eyebrow">{heroKicker}</span>
-              <h2 className="section-heading__title">{heroTitle}</h2>
-            </div>
-            <div className="section-heading__aside">
-              <p className="section-heading__text">{heroText}</p>
-              {renderCheckoutViewSwitch()}
-            </div>
-          </div>
-
-          <section className="section-card section-card--compact filter-panel">
-            <div className="filter-panel__grid filter-panel__grid--checkout">
-              <div className="form-field">
-                <label htmlFor={`${heroTitle}-search`}>{t.common.search}</label>
-                <input
-                  id={`${heroTitle}-search`}
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={searchPlaceholder}
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor={`${heroTitle}-status-filter`}>
-                  {t.checkouts.statusFilterLabel}
-                </label>
-                <select
-                  id={`${heroTitle}-status-filter`}
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
-                >
-                  <option value="all">{t.checkouts.filterAll}</option>
-                  <option value="active">{t.checkouts.filterActive}</option>
-                  <option value="overdue">{t.checkouts.filterOverdue}</option>
-                  <option value="closed">{t.checkouts.filterClosed}</option>
-                </select>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor={`${heroTitle}-sort`}>{t.checkouts.sortByLabel}</label>
-                <select
-                  id={`${heroTitle}-sort`}
-                  value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
-                >
-                  <option value="recent">{t.checkouts.sortRecent}</option>
-                  <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
-                  <option value="dueLate">{t.checkouts.sortDueLate}</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="filter-panel__footer">
-              <p className="filter-panel__summary">
-                {filteredCheckouts.length} / {items.length}
-              </p>
-              <button type="button" className="button-secondary" onClick={resetFilters}>
-                {t.common.clearFilters}
-              </button>
-            </div>
-          </section>
-
+          ) : (
           <div className="equipment-list">
             {filteredCheckouts.map((checkout) => {
               const overdue = isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)
@@ -612,6 +640,7 @@ export function CheckoutCollectionView({
               )
             })}
           </div>
+          )}
         </section>
       )}
     </>

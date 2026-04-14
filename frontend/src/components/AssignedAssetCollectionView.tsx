@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ProtectedAssetImage } from './ProtectedAssetImage'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
@@ -10,8 +10,11 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
-
-type AssignedAssetSort = 'dueSoon' | 'dueLate' | 'name'
+import {
+  getEnumSearchParam,
+  getTextSearchParam,
+  setMergedSearchParams,
+} from '../utils/searchParams'
 
 interface AssignedAssetCollectionViewProps {
   items: CheckoutItem[]
@@ -21,6 +24,7 @@ interface AssignedAssetCollectionViewProps {
   heroKicker: string
   heroTitle: string
   heroText: string
+  queryKeyPrefix: string
 }
 
 function getTimelineState(checkout: CheckoutItem) {
@@ -49,11 +53,23 @@ export function AssignedAssetCollectionView({
   heroKicker,
   heroTitle,
   heroText,
+  queryKeyPrefix,
 }: AssignedAssetCollectionViewProps) {
   const { language, t } = useLanguage()
-  const [assetView, setAssetView] = useState<'cards' | 'list'>('list')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<AssignedAssetSort>('dueSoon')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const assetView = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-view`,
+    ['cards', 'list'] as const,
+    'list',
+  )
+  const searchQuery = getTextSearchParam(searchParams, `${queryKeyPrefix}-search`)
+  const sortBy = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-sort`,
+    ['dueSoon', 'dueLate', 'name'] as const,
+    'dueSoon',
+  )
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
@@ -90,8 +106,11 @@ export function AssignedAssetCollectionView({
   }, [items, language, searchQuery, sortBy])
 
   function resetFilters() {
-    setSearchQuery('')
-    setSortBy('dueSoon')
+    setMergedSearchParams(setSearchParams, {
+      [`${queryKeyPrefix}-search`]: null,
+      [`${queryKeyPrefix}-sort`]: null,
+      [`${queryKeyPrefix}-view`]: null,
+    })
   }
 
   function renderViewSwitch() {
@@ -102,7 +121,11 @@ export function AssignedAssetCollectionView({
           className={`view-switch__button ${
             assetView === 'cards' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setAssetView('cards')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              [`${queryKeyPrefix}-view`]: 'cards',
+            })
+          }
         >
           {t.common.cardsView}
         </button>
@@ -111,7 +134,11 @@ export function AssignedAssetCollectionView({
           className={`view-switch__button ${
             assetView === 'list' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setAssetView('list')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              [`${queryKeyPrefix}-view`]: null,
+            })
+          }
         >
           {t.common.listView}
         </button>
@@ -149,7 +176,13 @@ export function AssignedAssetCollectionView({
               id={`${heroTitle}-assets-search`}
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  [`${queryKeyPrefix}-search`]: event.target.value.trim()
+                    ? event.target.value
+                    : null,
+                })
+              }
               placeholder={searchPlaceholder}
             />
           </div>
@@ -159,7 +192,12 @@ export function AssignedAssetCollectionView({
             <select
               id={`${heroTitle}-assets-sort`}
               value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as AssignedAssetSort)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  [`${queryKeyPrefix}-sort`]:
+                    event.target.value === 'dueSoon' ? null : event.target.value,
+                })
+              }
             >
               <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
               <option value="dueLate">{t.checkouts.sortDueLate}</option>

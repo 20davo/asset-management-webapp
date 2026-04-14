@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { getAllCheckouts } from '../api/checkoutApi'
 import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 import { useAuth } from '../context/AuthContext'
@@ -12,9 +12,13 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
+import {
+  getEnumSearchParam,
+  getTextSearchParam,
+  setMergedSearchParams,
+} from '../utils/searchParams'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
-type CheckoutSort = 'recent' | 'dueSoon' | 'dueLate'
 
 function getCheckoutState(checkout: CheckoutItem): Exclude<CheckoutFilter, 'all'> {
   if (checkout.returnedAt) {
@@ -49,14 +53,30 @@ function getCheckoutTimelineState(checkout: CheckoutItem) {
 function AllCheckoutsPage() {
   const { user } = useAuth()
   const { language, t } = useLanguage()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [checkoutView, setCheckoutView] = useState<'cards' | 'list'>('list')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CheckoutFilter>('all')
-  const [sortBy, setSortBy] = useState<CheckoutSort>('recent')
+  const checkoutView = getEnumSearchParam(
+    searchParams,
+    'view',
+    ['cards', 'list'] as const,
+    'list',
+  )
+  const searchQuery = getTextSearchParam(searchParams, 'search')
+  const statusFilter = getEnumSearchParam(
+    searchParams,
+    'state',
+    ['all', 'active', 'overdue', 'closed'] as const,
+    'all',
+  )
+  const sortBy = getEnumSearchParam(
+    searchParams,
+    'sort',
+    ['recent', 'dueSoon', 'dueLate'] as const,
+    'recent',
+  )
 
   useEffect(() => {
     async function loadCheckouts() {
@@ -125,9 +145,12 @@ function AllCheckoutsPage() {
   }, [checkouts, searchQuery, sortBy, statusFilter])
 
   function resetFilters() {
-    setSearchQuery('')
-    setStatusFilter('all')
-    setSortBy('recent')
+    setMergedSearchParams(setSearchParams, {
+      search: null,
+      state: null,
+      sort: null,
+      view: null,
+    })
   }
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
@@ -152,7 +175,11 @@ function AllCheckoutsPage() {
           className={`view-switch__button ${
             checkoutView === 'cards' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setCheckoutView('cards')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              view: 'cards',
+            })
+          }
         >
           {t.common.cardsView}
         </button>
@@ -161,7 +188,11 @@ function AllCheckoutsPage() {
           className={`view-switch__button ${
             checkoutView === 'list' ? 'view-switch__button--active' : ''
           }`}
-          onClick={() => setCheckoutView('list')}
+          onClick={() =>
+            setMergedSearchParams(setSearchParams, {
+              view: null,
+            })
+          }
         >
           {t.common.listView}
         </button>
@@ -231,7 +262,11 @@ function AllCheckoutsPage() {
               id="all-checkouts-search"
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  search: event.target.value.trim() ? event.target.value : null,
+                })
+              }
               placeholder={t.checkouts.allSearchPlaceholder}
             />
           </div>
@@ -243,7 +278,11 @@ function AllCheckoutsPage() {
             <select
               id="all-checkouts-status-filter"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as CheckoutFilter)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  state: event.target.value === 'all' ? null : event.target.value,
+                })
+              }
             >
               <option value="all">{t.checkouts.filterAll}</option>
               <option value="active">{t.checkouts.filterActive}</option>
@@ -257,7 +296,11 @@ function AllCheckoutsPage() {
             <select
               id="all-checkouts-sort"
               value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as CheckoutSort)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  sort: event.target.value === 'recent' ? null : event.target.value,
+                })
+              }
             >
               <option value="recent">{t.checkouts.sortRecent}</option>
               <option value="dueSoon">{t.checkouts.sortDueSoon}</option>

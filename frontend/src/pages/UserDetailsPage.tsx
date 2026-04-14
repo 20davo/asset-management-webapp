@@ -133,6 +133,7 @@ function UserDetailsPage() {
         heroKicker={t.users.currentItemsKicker}
         heroTitle={t.users.currentItemsTitle}
         heroText={t.users.currentItemsText}
+        queryKeyPrefix="assigned"
       />
 
       <CheckoutCollectionView
@@ -145,6 +146,8 @@ function UserDetailsPage() {
         heroText={t.users.historyText}
         compact
         linkAssetNameOnly
+        queryKeyPrefix="history"
+        filterMode="equipment"
       />
     </div>
   )

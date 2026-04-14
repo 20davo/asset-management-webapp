@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { getAllCheckouts } from '../api/checkoutApi'
 import { getUsers } from '../api/userApi'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,11 @@ import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import type { ManagedUser } from '../types/user'
 import { isCheckoutOverdue } from '../utils/presentation'
+import {
+  getEnumSearchParam,
+  getTextSearchParam,
+  setMergedSearchParams,
+} from '../utils/searchParams'
 
 interface UserSummaryCard extends ManagedUser {
   totalCheckouts: number
@@ -18,11 +23,17 @@ interface UserSummaryCard extends ManagedUser {
 function UsersPage() {
   const { user } = useAuth()
   const { t } = useLanguage()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [users, setUsers] = useState<UserSummaryCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'activity'>('name')
+  const searchQuery = getTextSearchParam(searchParams, 'search')
+  const sortBy = getEnumSearchParam(
+    searchParams,
+    'sort',
+    ['name', 'activity'] as const,
+    'name',
+  )
 
   useEffect(() => {
     async function loadUsers() {
@@ -74,8 +85,10 @@ function UsersPage() {
   const overdueCheckouts = users.reduce((sum, candidate) => sum + candidate.overdueCheckouts, 0)
 
   function resetFilters() {
-    setSearchQuery('')
-    setSortBy('name')
+    setMergedSearchParams(setSearchParams, {
+      search: null,
+      sort: null,
+    })
   }
 
   if (user?.role !== 'Admin') {
@@ -134,7 +147,11 @@ function UsersPage() {
               id="users-search"
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  search: event.target.value.trim() ? event.target.value : null,
+                })
+              }
               placeholder={t.users.searchPlaceholder}
             />
           </div>
@@ -144,7 +161,11 @@ function UsersPage() {
             <select
               id="users-sort"
               value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as 'name' | 'activity')}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  sort: event.target.value === 'name' ? null : event.target.value,
+                })
+              }
             >
               <option value="name">{t.users.sortByName}</option>
               <option value="activity">{t.users.sortByActivity}</option>

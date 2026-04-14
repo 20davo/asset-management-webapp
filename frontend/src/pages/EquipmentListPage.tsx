@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   createEquipment,
   deleteEquipment,
@@ -18,6 +18,11 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
+import {
+  getEnumSearchParam,
+  getTextSearchParam,
+  setMergedSearchParams,
+} from '../utils/searchParams'
 import { useLanguage } from '../context/LanguageContext'
 import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
 
@@ -44,7 +49,6 @@ const emptyForm: EquipmentFormState = {
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 
 type InventoryActionKind = 'edit' | 'maintenance' | 'available' | 'delete'
-type InventorySort = 'name' | 'newest' | 'oldest'
 
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -68,6 +72,7 @@ function EquipmentListPage() {
   const { user } = useAuth()
   const { language, t } = useLanguage()
   const isAdmin = user?.role === 'Admin'
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [equipments, setEquipments] = useState<EquipmentListItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -82,12 +87,22 @@ function EquipmentListPage() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [deletingEquipmentId, setDeletingEquipmentId] = useState<number | null>(null)
   const [statusChangingEquipmentId, setStatusChangingEquipmentId] = useState<number | null>(null)
-  const [inventoryView, setInventoryView] = useState<'cards' | 'list'>('list')
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [sortBy, setSortBy] = useState<InventorySort>('name')
+  const inventoryView = getEnumSearchParam(
+    searchParams,
+    'view',
+    ['cards', 'list'] as const,
+    'list',
+  )
+  const searchQuery = getTextSearchParam(searchParams, 'search')
+  const statusFilter = searchParams.get('status') ?? 'all'
+  const categoryFilter = searchParams.get('category') ?? 'all'
+  const sortBy = getEnumSearchParam(
+    searchParams,
+    'sort',
+    ['name', 'newest', 'oldest'] as const,
+    'name',
+  )
 
   async function loadEquipments() {
     try {
@@ -383,10 +398,13 @@ function EquipmentListPage() {
   }, [categoryFilter, equipments, language, searchQuery, sortBy, statusFilter])
 
   function resetFilters() {
-    setSearchQuery('')
-    setStatusFilter('all')
-    setCategoryFilter('all')
-    setSortBy('name')
+    setMergedSearchParams(setSearchParams, {
+      search: null,
+      status: null,
+      category: null,
+      sort: null,
+      view: null,
+    })
   }
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
@@ -644,30 +662,66 @@ function EquipmentListPage() {
       <article key={equipment.id} className="equipment-card">
         {editingEquipmentId === equipment.id ? (
           <form
-            className="auth-form"
+            className="auth-form admin-form"
             onSubmit={(event) => handleEditSubmit(event, equipment.id)}
           >
-            <div className="section-heading section-heading--tight">
-              <div>
-                <span className="section-heading__eyebrow">
-                  {t.inventory.editingKicker}
-                </span>
-                <h3 className="section-heading__title">{t.inventory.editingTitle}</h3>
+            <div className="admin-form__fields">
+              <div className="section-heading section-heading--tight">
+                <div>
+                  <span className="section-heading__eyebrow">
+                    {t.inventory.editingKicker}
+                  </span>
+                  <h3 className="section-heading__title">{t.inventory.editingTitle}</h3>
+                </div>
+                <p className="section-heading__text">{t.inventory.editingText}</p>
               </div>
-              <p className="section-heading__text">{t.inventory.editingText}</p>
-            </div>
 
-            <div className="form-row">
+              <div className="form-row">
+                <div className="form-field">
+                  <label htmlFor={`edit-name-${equipment.id}`}>{t.inventory.name}</label>
+                  <input
+                    id={`edit-name-${equipment.id}`}
+                    type="text"
+                    value={editForm.name}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor={`edit-category-${equipment.id}`}>
+                    {t.inventory.category}
+                  </label>
+                  <input
+                    id={`edit-category-${equipment.id}`}
+                    type="text"
+                    value={editForm.category}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        category: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="form-field">
-                <label htmlFor={`edit-name-${equipment.id}`}>{t.inventory.name}</label>
+                <label htmlFor={`edit-serial-${equipment.id}`}>{t.inventory.serial}</label>
                 <input
-                  id={`edit-name-${equipment.id}`}
+                  id={`edit-serial-${equipment.id}`}
                   type="text"
-                  value={editForm.name}
+                  value={editForm.serialNumber}
                   onChange={(event) =>
                     setEditForm((prev) => ({
                       ...prev,
-                      name: event.target.value,
+                      serialNumber: event.target.value,
                     }))
                   }
                   required
@@ -675,101 +729,69 @@ function EquipmentListPage() {
               </div>
 
               <div className="form-field">
-                <label htmlFor={`edit-category-${equipment.id}`}>
-                  {t.inventory.category}
+                <label htmlFor={`edit-description-${equipment.id}`}>
+                  {t.inventory.description}
                 </label>
-                <input
-                  id={`edit-category-${equipment.id}`}
-                  type="text"
-                  value={editForm.category}
+                <textarea
+                  id={`edit-description-${equipment.id}`}
+                  value={editForm.description}
                   onChange={(event) =>
                     setEditForm((prev) => ({
                       ...prev,
-                      category: event.target.value,
+                      description: event.target.value,
                     }))
                   }
-                  required
+                  rows={5}
                 />
               </div>
-            </div>
 
-            <div className="form-field">
-              <label htmlFor={`edit-serial-${equipment.id}`}>{t.inventory.serial}</label>
-              <input
-                id={`edit-serial-${equipment.id}`}
-                type="text"
-                value={editForm.serialNumber}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    serialNumber: event.target.value,
-                  }))
-                }
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label htmlFor={`edit-description-${equipment.id}`}>
-                {t.inventory.description}
-              </label>
-              <textarea
-                id={`edit-description-${equipment.id}`}
-                value={editForm.description}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    description: event.target.value,
-                  }))
-                }
-                rows={4}
-              />
-            </div>
-
-            <div className="form-field">
-              <span>{t.inventory.image}</span>
-              <div className="upload-control">
-                <input
-                  id={`edit-image-${equipment.id}`}
-                  className="upload-control__input"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => handleImageChange(event, 'edit')}
-                />
-                <label htmlFor={`edit-image-${equipment.id}`} className="upload-control__button">
-                  {editForm.imagePreviewUrl ? t.inventory.imageReplace : t.inventory.imageSelect}
-                </label>
-                <span className="form-field__hint">{t.inventory.imageHint}</span>
-              </div>
-            </div>
-
-            <div className="asset-image-field">
-              <span className="asset-image-field__label">{t.inventory.imagePreview}</span>
-              {renderEquipmentMedia(editForm.imagePreviewUrl, editForm.name || equipment.name)}
-              {editForm.imagePreviewUrl && (
+              <div className="form-actions">
+                <button type="submit" className="form-submit" disabled={isUpdating}>
+                  {isUpdating ? t.inventory.saving : t.inventory.saveChanges}
+                </button>
                 <button
                   type="button"
                   className="button-secondary"
-                  onClick={() => removeImage('edit')}
+                  onClick={cancelEdit}
+                  disabled={isUpdating}
                 >
-                  {t.inventory.imageRemove}
+                  {t.inventory.cancel}
                 </button>
-              )}
+              </div>
             </div>
 
-            <div className="form-actions">
-              <button type="submit" disabled={isUpdating}>
-                {isUpdating ? t.inventory.saving : t.inventory.saveChanges}
-              </button>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={cancelEdit}
-                disabled={isUpdating}
-              >
-                {t.inventory.cancel}
-              </button>
-            </div>
+            <aside className="admin-form__aside">
+              <div className="form-field">
+                <span>{t.inventory.image}</span>
+                <div className="upload-control">
+                  <input
+                    id={`edit-image-${equipment.id}`}
+                    className="upload-control__input"
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleImageChange(event, 'edit')}
+                  />
+                  <label htmlFor={`edit-image-${equipment.id}`} className="upload-control__button">
+                    {editForm.imagePreviewUrl ? t.inventory.imageReplace : t.inventory.imageSelect}
+                  </label>
+                  <span className="form-field__hint">{t.inventory.imageHint}</span>
+                </div>
+              </div>
+
+              <div className="asset-image-field">
+                <span className="asset-image-field__label">{t.inventory.imagePreview}</span>
+                {renderEquipmentMedia(editForm.imagePreviewUrl, editForm.name || equipment.name)}
+                {editForm.imagePreviewUrl && (
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => removeImage('edit')}
+                  >
+                    {t.inventory.imageRemove}
+                  </button>
+                )}
+              </div>
+            </aside>
           </form>
         ) : (
           <div className="equipment-card__layout equipment-card__layout--media-first">
@@ -1054,7 +1076,11 @@ function EquipmentListPage() {
               id="inventory-search"
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  search: event.target.value.trim() ? event.target.value : null,
+                })
+              }
               placeholder={t.inventory.searchPlaceholder}
             />
           </div>
@@ -1064,7 +1090,11 @@ function EquipmentListPage() {
             <select
               id="inventory-status-filter"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  status: event.target.value === 'all' ? null : event.target.value,
+                })
+              }
             >
               <option value="all">{t.inventory.allStatuses}</option>
               <option value="Available">{t.inventory.available}</option>
@@ -1078,7 +1108,11 @@ function EquipmentListPage() {
             <select
               id="inventory-category-filter"
               value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  category: event.target.value === 'all' ? null : event.target.value,
+                })
+              }
             >
               <option value="all">{t.inventory.allCategories}</option>
               {categories.map((category) => (
@@ -1094,7 +1128,11 @@ function EquipmentListPage() {
             <select
               id="inventory-sort"
               value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as InventorySort)}
+              onChange={(event) =>
+                setMergedSearchParams(setSearchParams, {
+                  sort: event.target.value === 'name' ? null : event.target.value,
+                })
+              }
             >
               <option value="name">{t.inventory.sortByName}</option>
               <option value="newest">{t.inventory.sortByNewest}</option>
@@ -1127,7 +1165,11 @@ function EquipmentListPage() {
                   className={`view-switch__button ${
                     inventoryView === 'cards' ? 'view-switch__button--active' : ''
                   }`}
-                  onClick={() => setInventoryView('cards')}
+                  onClick={() =>
+                    setMergedSearchParams(setSearchParams, {
+                      view: 'cards',
+                    })
+                  }
                 >
                   {t.common.cardsView}
                 </button>
@@ -1136,7 +1178,11 @@ function EquipmentListPage() {
                   className={`view-switch__button ${
                     inventoryView === 'list' ? 'view-switch__button--active' : ''
                   }`}
-                  onClick={() => setInventoryView('list')}
+                  onClick={() =>
+                    setMergedSearchParams(setSearchParams, {
+                      view: null,
+                    })
+                  }
                 >
                   {t.common.listView}
                 </button>

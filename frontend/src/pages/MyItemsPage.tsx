@@ -106,6 +106,7 @@ function MyItemsPage() {
         heroKicker={t.myItems.currentKicker}
         heroTitle={t.myItems.currentTitle}
         heroText={t.myItems.currentText}
+        queryKeyPrefix="current"
       />
 
       <CheckoutCollectionView
@@ -118,6 +119,8 @@ function MyItemsPage() {
         heroText={t.myItems.historyText}
         compact
         linkAssetNameOnly
+        queryKeyPrefix="history"
+        filterMode="equipment"
       />
     </div>
   )
