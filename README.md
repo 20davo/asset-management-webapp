@@ -313,3 +313,10 @@ The project is in a strong demo-ready state, but a few production-level decision
 - login rate limiting is currently IP-based
 - the light/dark appearance switch in settings is still a UI placeholder
 - the production-like Docker path is closer to deployment, but it is not yet a full final deployment setup with TLS, domain routing, and secret management
+
+## License
+
+This repository is shared as a public portfolio project.
+
+The code is not open source and is provided for review and evaluation only.
+See [LICENSE](./LICENSE) for details.
