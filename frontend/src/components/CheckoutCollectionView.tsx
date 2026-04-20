@@ -14,10 +14,12 @@ import {
   getEnumSearchParam,
   getTextSearchParam,
   setMergedSearchParams,
+  toggleSortSearchParams,
 } from '../utils/searchParams'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
 type FilterMode = 'checkout' | 'equipment' | 'none'
+type CheckoutSortField = 'asset' | 'user' | 'status' | 'checkedOutAt' | 'dueAt' | 'returnedAt'
 
 interface CheckoutCollectionViewProps {
   items: CheckoutItem[]
@@ -50,15 +52,15 @@ function getCheckoutState(checkout: CheckoutItem): Exclude<CheckoutFilter, 'all'
 function getCheckoutTimelineState(checkout: CheckoutItem) {
   if (isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--danger',
-      pillLabel: 'overdue',
+      alertClass: 'deadline-flag deadline-flag--danger',
+      alertLabel: 'overdue',
     } as const
   }
 
   if (isCheckoutDueSoon(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--warning',
-      pillLabel: 'dueSoon',
+      alertClass: 'deadline-flag deadline-flag--warning',
+      alertLabel: 'dueSoon',
     } as const
   }
 
@@ -101,11 +103,17 @@ export function CheckoutCollectionView({
     ['all', 'Available', 'CheckedOut', 'Maintenance'] as const,
     'all',
   )
-  const sortBy = getEnumSearchParam(
+  const sortField = getEnumSearchParam(
     searchParams,
     `${queryKeyPrefix}-sort`,
-    ['recent', 'dueSoon', 'dueLate'] as const,
-    'recent',
+    ['asset', 'user', 'status', 'checkedOutAt', 'dueAt', 'returnedAt'] as const,
+    'checkedOutAt',
+  )
+  const sortDirection = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-dir`,
+    ['asc', 'desc'] as const,
+    'desc',
   )
 
   const activeCount = items.filter((checkout) => !checkout.returnedAt).length
@@ -149,21 +157,47 @@ export function CheckoutCollectionView({
     })
 
     result.sort((left, right) => {
-      switch (sortBy) {
-        case 'dueSoon':
-          return new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime()
-        case 'dueLate':
-          return new Date(right.dueAt).getTime() - new Date(left.dueAt).getTime()
-        case 'recent':
+      const multiplier = sortDirection === 'asc' ? 1 : -1
+
+      switch (sortField) {
+        case 'asset':
+          return left.equipment.name.localeCompare(right.equipment.name, language) * multiplier
+        case 'user':
+          return left.user.name.localeCompare(right.user.name, language) * multiplier
+        case 'status':
+          return (
+            getStatusLabel(left.equipment.status, language).localeCompare(
+              getStatusLabel(right.equipment.status, language),
+              language,
+            ) * multiplier
+          )
+        case 'dueAt':
+          return (new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime()) * multiplier
+        case 'returnedAt': {
+          const leftTime = left.returnedAt ? new Date(left.returnedAt).getTime() : Number.NEGATIVE_INFINITY
+          const rightTime = right.returnedAt ? new Date(right.returnedAt).getTime() : Number.NEGATIVE_INFINITY
+          return (leftTime - rightTime) * multiplier
+        }
+        case 'checkedOutAt':
         default:
           return (
-            new Date(right.checkedOutAt).getTime() - new Date(left.checkedOutAt).getTime()
+            (new Date(left.checkedOutAt).getTime() - new Date(right.checkedOutAt).getTime()) *
+            multiplier
           )
       }
     })
 
     return result
-  }, [checkoutStateFilter, equipmentStatusFilter, filterMode, items, searchQuery, sortBy])
+  }, [
+    checkoutStateFilter,
+    equipmentStatusFilter,
+    filterMode,
+    items,
+    language,
+    searchQuery,
+    sortDirection,
+    sortField,
+  ])
 
   function resetFilters() {
     setMergedSearchParams(setSearchParams, {
@@ -171,8 +205,35 @@ export function CheckoutCollectionView({
       [`${queryKeyPrefix}-state`]: null,
       [`${queryKeyPrefix}-status`]: null,
       [`${queryKeyPrefix}-sort`]: null,
+      [`${queryKeyPrefix}-dir`]: null,
       [`${queryKeyPrefix}-view`]: null,
     })
+  }
+
+  function renderSortableHeading(field: CheckoutSortField, label: string) {
+    const isActive = sortField === field
+    const icon = !isActive ? '↕' : sortDirection === 'asc' ? '↑' : '↓'
+
+    return (
+      <button
+        type="button"
+        className="data-list__sort-button"
+        onClick={() =>
+          toggleSortSearchParams(
+            setSearchParams,
+            `${queryKeyPrefix}-sort`,
+            `${queryKeyPrefix}-dir`,
+            field,
+            field === 'checkedOutAt' ? 'desc' : field === 'dueAt' ? 'asc' : 'asc',
+          )
+        }
+      >
+        <span>{label}</span>
+        <span className="data-list__sort-icon" aria-hidden="true">
+          {icon}
+        </span>
+      </button>
+    )
   }
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
@@ -373,23 +434,6 @@ export function CheckoutCollectionView({
                 </div>
               )}
 
-              <div className="form-field">
-                <label htmlFor={`${heroTitle}-sort`}>{t.checkouts.sortByLabel}</label>
-                <select
-                  id={`${heroTitle}-sort`}
-                  value={sortBy}
-                  onChange={(event) =>
-                    setMergedSearchParams(setSearchParams, {
-                      [`${queryKeyPrefix}-sort`]:
-                        event.target.value === 'recent' ? null : event.target.value,
-                    })
-                  }
-                >
-                  <option value="recent">{t.checkouts.sortRecent}</option>
-                  <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
-                  <option value="dueLate">{t.checkouts.sortDueLate}</option>
-                </select>
-              </div>
             </div>
 
             <div className="filter-panel__footer">
@@ -421,12 +465,12 @@ export function CheckoutCollectionView({
             }`}
           >
             <div className="data-list__header">
-              <span className="data-list__heading">{t.common.asset}</span>
-              {showUserColumn && <span className="data-list__heading">{t.common.user}</span>}
-              <span className="data-list__heading">{t.common.status}</span>
-              <span className="data-list__heading">{t.checkouts.checkedOutAt}</span>
-              <span className="data-list__heading">{t.checkouts.dueAt}</span>
-              <span className="data-list__heading">{t.checkouts.returnedAt}</span>
+              <span className="data-list__heading">{renderSortableHeading('asset', t.common.asset)}</span>
+              {showUserColumn && <span className="data-list__heading">{renderSortableHeading('user', t.common.user)}</span>}
+              <span className="data-list__heading">{renderSortableHeading('status', t.common.status)}</span>
+              <span className="data-list__heading">{renderSortableHeading('checkedOutAt', t.checkouts.checkedOutAt)}</span>
+              <span className="data-list__heading">{renderSortableHeading('dueAt', t.checkouts.dueAt)}</span>
+              <span className="data-list__heading">{renderSortableHeading('returnedAt', t.checkouts.returnedAt)}</span>
             </div>
 
             {filteredCheckouts.map((checkout) => {
@@ -451,14 +495,23 @@ export function CheckoutCollectionView({
                       </div>
 
                       <div className="data-list__asset-copy">
-                        <Link
-                          to={`/equipment/${checkout.equipment.id}`}
-                          className="context-link"
-                        >
-                          <strong className="data-list__primary-text context-link__primary">
-                            {checkout.equipment.name}
-                          </strong>
-                        </Link>
+                        <div className="data-list__title-row">
+                          <Link
+                            to={`/equipment/${checkout.equipment.id}`}
+                            className="context-link"
+                          >
+                            <strong className="data-list__primary-text context-link__primary">
+                              {checkout.equipment.name}
+                            </strong>
+                          </Link>
+                          {timelineState && (
+                            <span className={timelineState.alertClass}>
+                              {timelineState.alertLabel === 'overdue'
+                                ? t.checkouts.overdueBadge
+                                : t.checkouts.dueSoonBadge}
+                            </span>
+                          )}
+                        </div>
                         <span className="data-list__secondary-text">
                           {checkout.equipment.category} SN {checkout.equipment.serialNumber}
                         </span>
@@ -482,13 +535,6 @@ export function CheckoutCollectionView({
                       <span className={getStatusBadgeClass(checkout.equipment.status)}>
                         {getStatusLabel(checkout.equipment.status, language)}
                       </span>
-                      {timelineState && (
-                        <span className={timelineState.pillClass}>
-                          {timelineState.pillLabel === 'overdue'
-                            ? t.checkouts.overdueBadge
-                            : t.checkouts.dueSoonBadge}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -535,35 +581,38 @@ export function CheckoutCollectionView({
                     {renderEquipmentMedia(checkout.equipment.imageUrl, checkout.equipment.name)}
 
                     <div className="equipment-card__main">
-                      <div className="equipment-card__eyebrow">
-                        <span className="equipment-card__serial">
-                          SN {checkout.equipment.serialNumber}
-                        </span>
-                        <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                          {getStatusLabel(checkout.equipment.status, language)}
-                        </span>
-                      </div>
-
                       <div className="equipment-card__header">
                         <div className="equipment-card__title-group">
-                          <Link
-                            to={`/equipment/${checkout.equipment.id}`}
-                            className="context-link"
-                          >
-                            <h3 className="equipment-card__title-small context-link__primary">
-                              {checkout.equipment.name}
-                            </h3>
-                          </Link>
-                          <div className="equipment-card__signal-row">
-                            <span className="timeline-pill">{checkout.equipment.category}</span>
+                          <div className="equipment-card__title-row">
+                            <Link
+                              to={`/equipment/${checkout.equipment.id}`}
+                              className="context-link"
+                            >
+                              <h3 className="equipment-card__title-small context-link__primary">
+                                {checkout.equipment.name}
+                              </h3>
+                            </Link>
                             {timelineState && (
-                              <span className={timelineState.pillClass}>
-                                {timelineState.pillLabel === 'overdue'
+                              <span className={timelineState.alertClass}>
+                                {timelineState.alertLabel === 'overdue'
                                   ? t.checkouts.overdueBadge
                                   : t.checkouts.dueSoonBadge}
                               </span>
                             )}
                           </div>
+                          <span className="equipment-card__serial">
+                            SN {checkout.equipment.serialNumber}
+                          </span>
+                          <div className="equipment-card__signal-row">
+                            <span className="equipment-category-chip">
+                              {checkout.equipment.category}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="equipment-card__status-stack">
+                          <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                            {getStatusLabel(checkout.equipment.status, language)}
+                          </span>
                         </div>
                       </div>
 
@@ -617,11 +666,11 @@ export function CheckoutCollectionView({
                         </div>
                       </div>
 
-                      {timelineState?.pillLabel === 'overdue' && (
+                      {timelineState?.alertLabel === 'overdue' && (
                         <p className="form-error">{t.checkouts.overdueAlert}</p>
                       )}
 
-                      {timelineState?.pillLabel === 'dueSoon' && (
+                      {timelineState?.alertLabel === 'dueSoon' && (
                         <p className="timeline-note timeline-note--warning">
                           {t.checkouts.dueSoonAlert}
                         </p>

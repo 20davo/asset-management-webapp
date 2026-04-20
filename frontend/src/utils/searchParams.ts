@@ -41,3 +41,30 @@ export function setMergedSearchParams(
     { replace: true },
   )
 }
+
+export function toggleSortSearchParams(
+  setSearchParams: SetURLSearchParams,
+  fieldKey: string,
+  directionKey: string,
+  field: string,
+  defaultDirection: 'asc' | 'desc' = 'asc',
+) {
+  setSearchParams(
+    (previous) => {
+      const next = new URLSearchParams(previous)
+      const currentField = previous.get(fieldKey)
+      const currentDirection = previous.get(directionKey)
+
+      next.set(fieldKey, field)
+
+      if (currentField === field) {
+        next.set(directionKey, currentDirection === 'desc' ? 'asc' : 'desc')
+      } else {
+        next.set(directionKey, defaultDirection)
+      }
+
+      return next
+    },
+    { replace: true },
+  )
+}

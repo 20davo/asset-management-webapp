@@ -14,6 +14,7 @@ import {
   getEnumSearchParam,
   getTextSearchParam,
   setMergedSearchParams,
+  toggleSortSearchParams,
 } from '../utils/searchParams'
 
 interface AssignedAssetCollectionViewProps {
@@ -25,20 +26,23 @@ interface AssignedAssetCollectionViewProps {
   heroTitle: string
   heroText: string
   queryKeyPrefix: string
+  enableWarningFilter?: boolean
 }
+
+type AssignedAssetSortField = 'asset' | 'serial' | 'status' | 'checkedOutAt' | 'dueAt'
 
 function getTimelineState(checkout: CheckoutItem) {
   if (isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--danger',
-      pillLabel: 'overdue',
+      alertClass: 'deadline-flag deadline-flag--danger',
+      alertLabel: 'overdue',
     } as const
   }
 
   if (isCheckoutDueSoon(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--warning',
-      pillLabel: 'dueSoon',
+      alertClass: 'deadline-flag deadline-flag--warning',
+      alertLabel: 'dueSoon',
     } as const
   }
 
@@ -54,6 +58,7 @@ export function AssignedAssetCollectionView({
   heroTitle,
   heroText,
   queryKeyPrefix,
+  enableWarningFilter = false,
 }: AssignedAssetCollectionViewProps) {
   const { language, t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -64,22 +69,35 @@ export function AssignedAssetCollectionView({
     'list',
   )
   const searchQuery = getTextSearchParam(searchParams, `${queryKeyPrefix}-search`)
-  const sortBy = getEnumSearchParam(
+  const sortField = getEnumSearchParam(
     searchParams,
     `${queryKeyPrefix}-sort`,
-    ['dueSoon', 'dueLate', 'name'] as const,
-    'dueSoon',
+    ['asset', 'serial', 'status', 'checkedOutAt', 'dueAt'] as const,
+    'dueAt',
+  )
+  const sortDirection = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-dir`,
+    ['asc', 'desc'] as const,
+    'asc',
+  )
+  const warningFilter = getEnumSearchParam(
+    searchParams,
+    `${queryKeyPrefix}-warning`,
+    ['all', 'none', 'dueSoon', 'overdue'] as const,
+    'all',
   )
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     const result = items.filter((checkout) => {
+      const warningState = getTimelineState(checkout)?.alertLabel ?? 'none'
       if (normalizedQuery.length === 0) {
-        return true
+        return enableWarningFilter ? warningFilter === 'all' || warningState === warningFilter : true
       }
 
-      return [
+      const matchesSearch = [
         checkout.equipment.name,
         checkout.equipment.category,
         checkout.equipment.serialNumber,
@@ -88,29 +106,80 @@ export function AssignedAssetCollectionView({
         .join(' ')
         .toLowerCase()
         .includes(normalizedQuery)
+
+      const matchesWarning =
+        !enableWarningFilter || warningFilter === 'all' || warningState === warningFilter
+
+      return matchesSearch && matchesWarning
     })
 
     result.sort((left, right) => {
-      switch (sortBy) {
-        case 'dueLate':
-          return new Date(right.dueAt).getTime() - new Date(left.dueAt).getTime()
-        case 'name':
-          return left.equipment.name.localeCompare(right.equipment.name, language)
-        case 'dueSoon':
+      const multiplier = sortDirection === 'asc' ? 1 : -1
+
+      switch (sortField) {
+        case 'asset':
+          return left.equipment.name.localeCompare(right.equipment.name, language) * multiplier
+        case 'serial':
+          return (
+            left.equipment.serialNumber.localeCompare(right.equipment.serialNumber, language, {
+              numeric: true,
+            }) * multiplier
+          )
+        case 'status':
+          return (
+            getStatusLabel(left.equipment.status, language).localeCompare(
+              getStatusLabel(right.equipment.status, language),
+              language,
+            ) * multiplier
+          )
+        case 'checkedOutAt':
+          return (
+            (new Date(left.checkedOutAt).getTime() - new Date(right.checkedOutAt).getTime()) *
+            multiplier
+          )
+        case 'dueAt':
         default:
-          return new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime()
+          return (new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime()) * multiplier
       }
     })
 
     return result
-  }, [items, language, searchQuery, sortBy])
+  }, [enableWarningFilter, items, language, searchQuery, sortDirection, sortField, warningFilter])
 
   function resetFilters() {
     setMergedSearchParams(setSearchParams, {
       [`${queryKeyPrefix}-search`]: null,
       [`${queryKeyPrefix}-sort`]: null,
+      [`${queryKeyPrefix}-dir`]: null,
+      [`${queryKeyPrefix}-warning`]: null,
       [`${queryKeyPrefix}-view`]: null,
     })
+  }
+
+  function renderSortableHeading(field: AssignedAssetSortField, label: string) {
+    const isActive = sortField === field
+    const icon = !isActive ? '↕' : sortDirection === 'asc' ? '↑' : '↓'
+
+    return (
+      <button
+        type="button"
+        className="data-list__sort-button"
+        onClick={() =>
+          toggleSortSearchParams(
+            setSearchParams,
+            `${queryKeyPrefix}-sort`,
+            `${queryKeyPrefix}-dir`,
+            field,
+            field === 'dueAt' ? 'asc' : field === 'checkedOutAt' ? 'desc' : 'asc',
+          )
+        }
+      >
+        <span>{label}</span>
+        <span className="data-list__sort-icon" aria-hidden="true">
+          {icon}
+        </span>
+      </button>
+    )
   }
 
   function renderViewSwitch() {
@@ -187,23 +256,26 @@ export function AssignedAssetCollectionView({
             />
           </div>
 
-          <div className="form-field">
-            <label htmlFor={`${heroTitle}-assets-sort`}>{t.checkouts.sortByLabel}</label>
-            <select
-              id={`${heroTitle}-assets-sort`}
-              value={sortBy}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  [`${queryKeyPrefix}-sort`]:
-                    event.target.value === 'dueSoon' ? null : event.target.value,
-                })
-              }
-            >
-              <option value="dueSoon">{t.checkouts.sortDueSoon}</option>
-              <option value="dueLate">{t.checkouts.sortDueLate}</option>
-              <option value="name">{t.inventory.sortByName}</option>
-            </select>
-          </div>
+          {enableWarningFilter && (
+            <div className="form-field">
+              <label htmlFor={`${heroTitle}-assets-warning`}>{t.common.warningFilterLabel}</label>
+              <select
+                id={`${heroTitle}-assets-warning`}
+                value={warningFilter}
+                onChange={(event) =>
+                  setMergedSearchParams(setSearchParams, {
+                    [`${queryKeyPrefix}-warning`]:
+                      event.target.value === 'all' ? null : event.target.value,
+                  })
+                }
+              >
+                <option value="all">{t.common.allWarnings}</option>
+                <option value="none">{t.common.noWarning}</option>
+                <option value="dueSoon">{t.common.warningDueSoon}</option>
+                <option value="overdue">{t.common.warningOverdue}</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="filter-panel__footer">
@@ -224,21 +296,21 @@ export function AssignedAssetCollectionView({
       ) : assetView === 'list' ? (
         <div className="data-list data-list--assigned-assets">
           <div className="data-list__header">
-            <span className="data-list__heading">{t.common.asset}</span>
-            <span className="data-list__heading">{t.inventory.serial}</span>
-            <span className="data-list__heading">{t.common.status}</span>
-            <span className="data-list__heading">{t.checkouts.checkedOutAt}</span>
-            <span className="data-list__heading">{t.checkouts.dueAt}</span>
+            <span className="data-list__heading">{renderSortableHeading('asset', t.common.asset)}</span>
+            <span className="data-list__heading">{renderSortableHeading('serial', t.inventory.serial)}</span>
+            <span className="data-list__heading">{renderSortableHeading('status', t.common.status)}</span>
+            <span className="data-list__heading">{renderSortableHeading('checkedOutAt', t.checkouts.checkedOutAt)}</span>
+            <span className="data-list__heading">{renderSortableHeading('dueAt', t.checkouts.dueAt)}</span>
           </div>
 
           {filteredItems.map((checkout) => {
             const timelineState = getTimelineState(checkout)
 
             return (
-              <article
-                key={checkout.id}
-                className={`data-list__row ${
-                  timelineState?.pillLabel === 'overdue' ? 'data-list__row--overdue' : ''
+                <article
+                  key={checkout.id}
+                  className={`data-list__row ${
+                  timelineState?.alertLabel === 'overdue' ? 'data-list__row--overdue' : ''
                 }`}
               >
                 <div className="data-list__cell data-list__cell--primary">
@@ -254,14 +326,23 @@ export function AssignedAssetCollectionView({
                     </div>
 
                     <div className="data-list__asset-copy">
-                      <Link
-                        to={`/equipment/${checkout.equipment.id}`}
-                        className="context-link"
-                      >
-                        <strong className="data-list__primary-text context-link__primary">
-                          {checkout.equipment.name}
-                        </strong>
-                      </Link>
+                      <div className="data-list__title-row">
+                        <Link
+                          to={`/equipment/${checkout.equipment.id}`}
+                          className="context-link"
+                        >
+                          <strong className="data-list__primary-text context-link__primary">
+                            {checkout.equipment.name}
+                          </strong>
+                        </Link>
+                        {timelineState && (
+                          <span className={timelineState.alertClass}>
+                            {timelineState.alertLabel === 'overdue'
+                              ? t.checkouts.overdueBadge
+                              : t.checkouts.dueSoonBadge}
+                          </span>
+                        )}
+                      </div>
                       <span className="data-list__secondary-text">
                         {checkout.equipment.category}
                       </span>
@@ -278,19 +359,12 @@ export function AssignedAssetCollectionView({
                 </div>
 
                 <div className="data-list__cell">
-                  <span className="data-list__mobile-label">{t.common.status}</span>
-                  <div className="data-list__status-stack">
-                    <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                      {getStatusLabel(checkout.equipment.status, language)}
-                    </span>
-                    {timelineState && (
-                      <span className={timelineState.pillClass}>
-                        {timelineState.pillLabel === 'overdue'
-                          ? t.checkouts.overdueBadge
-                          : t.checkouts.dueSoonBadge}
+                    <span className="data-list__mobile-label">{t.common.status}</span>
+                    <div className="data-list__status-stack">
+                      <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                        {getStatusLabel(checkout.equipment.status, language)}
                       </span>
-                    )}
-                  </div>
+                    </div>
                 </div>
 
                 <div className="data-list__cell">
@@ -316,11 +390,11 @@ export function AssignedAssetCollectionView({
             const timelineState = getTimelineState(checkout)
 
             return (
-              <article
-                key={checkout.id}
-                className={`equipment-card ${
-                  timelineState?.pillLabel === 'overdue' ? 'equipment-card--overdue' : ''
-                }`}
+                <article
+                  key={checkout.id}
+                  className={`equipment-card ${
+                    timelineState?.alertLabel === 'overdue' ? 'equipment-card--overdue' : ''
+                  }`}
               >
                 <div className="equipment-card__layout equipment-card__layout--media-first">
                   <div className="equipment-card__media">
@@ -333,40 +407,49 @@ export function AssignedAssetCollectionView({
                     />
                   </div>
 
-                  <div className="equipment-card__main">
-                    <div className="equipment-card__eyebrow">
-                      <span className="equipment-card__serial">
-                        SN {checkout.equipment.serialNumber}
-                      </span>
-                      <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                        {getStatusLabel(checkout.equipment.status, language)}
-                      </span>
-                    </div>
-
-                    <div className="equipment-card__header">
-                      <div className="equipment-card__title-group">
-                        <Link
-                          to={`/equipment/${checkout.equipment.id}`}
-                          className="context-link"
-                        >
-                          <h3 className="equipment-card__title-small context-link__primary">
-                            {checkout.equipment.name}
-                          </h3>
-                        </Link>
-                        <div className="equipment-card__signal-row">
-                          <span className="timeline-pill">{checkout.equipment.category}</span>
-                          {timelineState && (
-                            <span className={timelineState.pillClass}>
-                              {timelineState.pillLabel === 'overdue'
-                                ? t.checkouts.overdueBadge
-                                : t.checkouts.dueSoonBadge}
+                    <div className="equipment-card__main">
+                      <div className="equipment-card__header">
+                        <div className="equipment-card__title-group">
+                          <div className="equipment-card__title-row">
+                            <Link
+                              to={`/equipment/${checkout.equipment.id}`}
+                              className="context-link"
+                            >
+                              <h3 className="equipment-card__title-small context-link__primary">
+                                {checkout.equipment.name}
+                              </h3>
+                            </Link>
+                            {timelineState && (
+                              <span className={timelineState.alertClass}>
+                                {timelineState.alertLabel === 'overdue'
+                                  ? t.checkouts.overdueBadge
+                                  : t.checkouts.dueSoonBadge}
+                              </span>
+                            )}
+                          </div>
+                          <span className="equipment-card__serial">
+                            SN {checkout.equipment.serialNumber}
+                          </span>
+                          <div className="equipment-card__signal-row">
+                            <span className="equipment-category-chip">
+                              {checkout.equipment.category}
                             </span>
-                          )}
+                          </div>
                         </div>
+                        <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                          {getStatusLabel(checkout.equipment.status, language)}
+                        </span>
                       </div>
-                    </div>
 
-                    <div className="equipment-meta">
+                      {timelineState && (
+                        <div className="inventory-status-context">
+                          <span className="inventory-status-context__meta">
+                            {t.checkouts.dueAt}: {formatDateTime(checkout.dueAt, language)}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="equipment-meta">
                       <div className="equipment-meta__item">
                         <span className="equipment-meta__label">
                           {t.checkouts.checkedOutAt}

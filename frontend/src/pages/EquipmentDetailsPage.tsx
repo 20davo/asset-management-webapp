@@ -243,6 +243,8 @@ function EquipmentDetailsPage() {
     activeCheckoutDueAt && !activeCheckoutOverdue
       ? isCheckoutDueSoon(activeCheckoutDueAt, null)
       : false
+  const canSeeActiveCheckoutDetails =
+    isAdminUser || equipment.isCheckedOutByCurrentUser
 
   function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
     return (
@@ -280,12 +282,14 @@ function EquipmentDetailsPage() {
             {activeCheckoutUserName ? activeCheckoutUserName : t.details.unassigned}
           </strong>
           <p className="page-hero__panel-text">
-            {activeCheckoutDueAt
+            {activeCheckoutDueAt && canSeeActiveCheckoutDetails
               ? `${activeCheckoutOverdue
                   ? t.details.overduePrefix
                   : activeCheckoutDueSoon
                     ? t.details.dueSoonPrefix
                     : t.details.deadlinePrefix}: ${formatDateTime(activeCheckoutDueAt, language)}`
+              : activeCheckoutUserName
+                ? t.details.assignedRestrictedNote
               : t.details.notIssued}
           </p>
           <div className="page-hero__panel-meta">
@@ -321,7 +325,19 @@ function EquipmentDetailsPage() {
               <div className="details-showcase__content">
                 <div className="equipment-card__header equipment-card__header--details">
                   <div className="equipment-card__title-group">
-                    <h3 className="equipment-card__title-small">{equipment.name}</h3>
+                    <div className="equipment-card__title-row">
+                      <h3 className="equipment-card__title-small">{equipment.name}</h3>
+                      {canSeeActiveCheckoutDetails && activeCheckoutOverdue && (
+                        <span className="deadline-flag deadline-flag--danger">
+                          {t.checkouts.overdueBadge}
+                        </span>
+                      )}
+                      {canSeeActiveCheckoutDetails && activeCheckoutDueSoon && (
+                        <span className="deadline-flag deadline-flag--warning">
+                          {t.checkouts.dueSoonBadge}
+                        </span>
+                      )}
+                    </div>
                     {equipment.description && (
                       <p className="equipment-card__subtitle">{equipment.description}</p>
                     )}
@@ -333,16 +349,6 @@ function EquipmentDetailsPage() {
 
                 <div className="equipment-card__signal-row">
                   <span className="equipment-category-chip">{equipment.category}</span>
-                  {activeCheckoutOverdue && (
-                    <span className="timeline-pill timeline-pill--danger">
-                      {t.checkouts.overdueBadge}
-                    </span>
-                  )}
-                  {activeCheckoutDueSoon && (
-                    <span className="timeline-pill timeline-pill--warning">
-                      {t.checkouts.dueSoonBadge}
-                    </span>
-                  )}
                 </div>
 
                 <div className="equipment-meta">
@@ -358,7 +364,7 @@ function EquipmentDetailsPage() {
                     </span>
                   </div>
 
-                  {activeCheckoutDueAt && (
+                  {canSeeActiveCheckoutDetails && activeCheckoutDueAt && (
                     <div className="equipment-meta__item">
                       <span className="equipment-meta__label">
                         {activeCheckoutOverdue
@@ -376,31 +382,50 @@ function EquipmentDetailsPage() {
               </div>
             </div>
 
-            {isAdminUser && (
-              <div className="equipment-card__actions">
-                {equipment.status === 'Available' && (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={handleMarkMaintenance}
-                    disabled={isStatusSubmitting}
-                  >
-                    {isStatusSubmitting ? t.common.saveInProgress : t.details.sendToMaintenance}
-                  </button>
-                )}
+            {isAdminUser &&
+              (equipment.status === 'Available' || equipment.status === 'Maintenance') && (
+                <div className="details-admin-action">
+                  <div className="details-admin-action__copy">
+                    <span className="details-admin-action__eyebrow">
+                      {t.details.stateActionKicker}
+                    </span>
+                    <h3 className="details-admin-action__title">
+                      {equipment.status === 'Available'
+                        ? t.details.stateActionMaintenanceTitle
+                        : t.details.stateActionAvailableTitle}
+                    </h3>
+                    <p className="details-admin-action__text">
+                      {equipment.status === 'Available'
+                        ? t.details.stateActionMaintenanceText
+                        : t.details.stateActionAvailableText}
+                    </p>
+                  </div>
 
-                {equipment.status === 'Maintenance' && (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={handleMarkAvailable}
-                    disabled={isStatusSubmitting}
-                  >
-                    {isStatusSubmitting ? t.common.saveInProgress : t.details.makeAvailable}
-                  </button>
-                )}
-              </div>
-            )}
+                  <div className="details-admin-action__controls">
+                    {equipment.status === 'Available' && (
+                      <button
+                        type="button"
+                        className="details-admin-action__button details-admin-action__button--maintenance"
+                        onClick={handleMarkMaintenance}
+                        disabled={isStatusSubmitting}
+                      >
+                        {isStatusSubmitting ? t.common.saveInProgress : t.details.sendToMaintenance}
+                      </button>
+                    )}
+
+                    {equipment.status === 'Maintenance' && (
+                      <button
+                        type="button"
+                        className="details-admin-action__button details-admin-action__button--available"
+                        onClick={handleMarkAvailable}
+                        disabled={isStatusSubmitting}
+                      >
+                        {isStatusSubmitting ? t.common.saveInProgress : t.details.makeAvailable}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
           </section>
 
           {canCheckoutNow && (
@@ -653,7 +678,7 @@ function EquipmentDetailsPage() {
                       : t.details.noHistoryNote}
                   </strong>
                 </div>
-                {activeCheckoutDueAt && (
+                {canSeeActiveCheckoutDetails && activeCheckoutDueAt && (
                   <div className="info-stack__item">
                     <span className="info-stack__label">
                       {activeCheckoutOverdue

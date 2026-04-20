@@ -107,6 +107,7 @@ function MyItemsPage() {
         heroTitle={t.myItems.currentTitle}
         heroText={t.myItems.currentText}
         queryKeyPrefix="current"
+        enableWarningFilter
       />
 
       <CheckoutCollectionView

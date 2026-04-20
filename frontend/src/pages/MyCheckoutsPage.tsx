@@ -31,15 +31,15 @@ function getCheckoutState(checkout: CheckoutItem): Exclude<CheckoutFilter, 'all'
 function getCheckoutTimelineState(checkout: CheckoutItem) {
   if (isCheckoutOverdue(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--danger',
-      pillLabel: 'overdue',
+      alertClass: 'deadline-flag deadline-flag--danger',
+      alertLabel: 'overdue',
     }
   }
 
   if (isCheckoutDueSoon(checkout.dueAt, checkout.returnedAt)) {
     return {
-      pillClass: 'timeline-pill timeline-pill--warning',
-      pillLabel: 'dueSoon',
+      alertClass: 'deadline-flag deadline-flag--warning',
+      alertLabel: 'dueSoon',
     }
   }
 
@@ -327,14 +327,23 @@ function MyCheckoutsPage() {
                       </div>
 
                       <div className="data-list__asset-copy">
-                        <Link
-                          to={`/equipment/${checkout.equipment.id}`}
-                          className="context-link"
-                        >
-                          <strong className="data-list__primary-text context-link__primary">
-                            {checkout.equipment.name}
-                          </strong>
-                        </Link>
+                        <div className="data-list__title-row">
+                          <Link
+                            to={`/equipment/${checkout.equipment.id}`}
+                            className="context-link"
+                          >
+                            <strong className="data-list__primary-text context-link__primary">
+                              {checkout.equipment.name}
+                            </strong>
+                          </Link>
+                          {timelineState && (
+                            <span className={timelineState.alertClass}>
+                              {timelineState.alertLabel === 'overdue'
+                                ? t.checkouts.overdueBadge
+                                : t.checkouts.dueSoonBadge}
+                            </span>
+                          )}
+                        </div>
                         <span className="data-list__secondary-text">
                           {checkout.equipment.category} SN {checkout.equipment.serialNumber}
                         </span>
@@ -351,13 +360,6 @@ function MyCheckoutsPage() {
                         <span className={getStatusBadgeClass(checkout.equipment.status)}>
                           {getStatusLabel(checkout.equipment.status, language)}
                         </span>
-                        {timelineState && (
-                          <span className={timelineState.pillClass}>
-                            {timelineState.pillLabel === 'overdue'
-                              ? t.checkouts.overdueBadge
-                              : t.checkouts.dueSoonBadge}
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -420,35 +422,38 @@ function MyCheckoutsPage() {
                     )}
 
                     <div className="equipment-card__main">
-                      <div className="equipment-card__eyebrow">
-                        <span className="equipment-card__serial">
-                          SN {checkout.equipment.serialNumber}
-                        </span>
-                        <span className={getStatusBadgeClass(checkout.equipment.status)}>
-                          {getStatusLabel(checkout.equipment.status, language)}
-                        </span>
-                      </div>
-
                       <div className="equipment-card__header">
                         <div className="equipment-card__title-group">
-                          <Link
-                            to={`/equipment/${checkout.equipment.id}`}
-                            className="context-link"
-                          >
-                            <h3 className="equipment-card__title-small context-link__primary">
-                              {checkout.equipment.name}
-                            </h3>
-                          </Link>
-                          <div className="equipment-card__signal-row">
-                            <span className="timeline-pill">{checkout.equipment.category}</span>
+                          <div className="equipment-card__title-row">
+                            <Link
+                              to={`/equipment/${checkout.equipment.id}`}
+                              className="context-link"
+                            >
+                              <h3 className="equipment-card__title-small context-link__primary">
+                                {checkout.equipment.name}
+                              </h3>
+                            </Link>
                             {timelineState && (
-                              <span className={timelineState.pillClass}>
-                                {timelineState.pillLabel === 'overdue'
+                              <span className={timelineState.alertClass}>
+                                {timelineState.alertLabel === 'overdue'
                                   ? t.checkouts.overdueBadge
                                   : t.checkouts.dueSoonBadge}
                               </span>
                             )}
                           </div>
+                          <span className="equipment-card__serial">
+                            SN {checkout.equipment.serialNumber}
+                          </span>
+                          <div className="equipment-card__signal-row">
+                            <span className="equipment-category-chip">
+                              {checkout.equipment.category}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="equipment-card__status-stack">
+                          <span className={getStatusBadgeClass(checkout.equipment.status)}>
+                            {getStatusLabel(checkout.equipment.status, language)}
+                          </span>
                         </div>
                       </div>
 
@@ -480,16 +485,6 @@ function MyCheckoutsPage() {
                           </span>
                         </div>
                       </div>
-
-                      {timelineState?.pillLabel === 'overdue' && (
-                        <p className="form-error">{t.checkouts.overdueAlert}</p>
-                      )}
-
-                      {timelineState?.pillLabel === 'dueSoon' && (
-                        <p className="timeline-note timeline-note--warning">
-                          {t.checkouts.dueSoonAlert}
-                        </p>
-                      )}
 
                       {checkout.note && (
                         <div className="equipment-description">
