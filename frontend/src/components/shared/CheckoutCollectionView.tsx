@@ -1,21 +1,21 @@
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ProtectedAssetImage } from './ProtectedAssetImage'
-import { useLanguage } from '../context/LanguageContext'
-import type { CheckoutItem } from '../types/checkout'
+import { useLanguage } from '../../context/LanguageContext'
+import type { CheckoutItem } from '../../types/checkout'
 import {
   formatDateTime,
   getStatusBadgeClass,
   getStatusLabel,
   isCheckoutDueSoon,
   isCheckoutOverdue,
-} from '../utils/presentation'
+} from '../../utils/presentation'
 import {
   getEnumSearchParam,
   getTextSearchParam,
   setMergedSearchParams,
   toggleSortSearchParams,
-} from '../utils/searchParams'
+} from '../../utils/searchParams'
+import { ProtectedAssetImage } from '../media/ProtectedAssetImage'
 
 type CheckoutFilter = 'all' | 'active' | 'overdue' | 'closed'
 type FilterMode = 'checkout' | 'equipment' | 'none'

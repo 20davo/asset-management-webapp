@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { handleUnauthorizedResponse } from '../api/axios'
-import { getToken } from '../utils/tokenStorage'
-import { resolveAssetImageUrl } from '../utils/assetImages'
+import { handleUnauthorizedResponse } from '../../api/axios'
+import { resolveAssetImageUrl } from '../../utils/assetImages'
+import { getToken } from '../../utils/tokenStorage'
 
 interface ProtectedAssetImageProps {
   imageUrl: string | null | undefined

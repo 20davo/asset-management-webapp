@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
   createEquipment,
   deleteEquipment,
@@ -12,8 +12,6 @@ import { useAuth } from '../context/AuthContext'
 import type { EquipmentListItem } from '../types/equipment'
 import {
   formatDate,
-  formatDateTime,
-  getStatusBadgeClass,
   getStatusLabel,
   isCheckoutDueSoon,
   isCheckoutOverdue,
@@ -25,32 +23,22 @@ import {
   toggleSortSearchParams,
 } from '../utils/searchParams'
 import { useLanguage } from '../context/LanguageContext'
-import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
-
-interface EquipmentFormState {
-  name: string
-  category: string
-  description: string
-  image: File | null
-  imagePreviewUrl: string
-  removeImage: boolean
-  serialNumber: string
-}
-
-const emptyForm: EquipmentFormState = {
-  name: '',
-  category: '',
-  description: '',
-  image: null,
-  imagePreviewUrl: '',
-  removeImage: false,
-  serialNumber: '',
-}
+import {
+  emptyEquipmentForm,
+  EquipmentForm,
+  type EquipmentFormState,
+} from '../components/equipment/EquipmentForm'
+import {
+  InventoryEquipmentCard,
+  type InventoryDueState,
+} from '../components/equipment/InventoryEquipmentCard'
+import { InventoryEquipmentRow } from '../components/equipment/InventoryEquipmentRow'
+import { InventoryFilters } from '../components/equipment/InventoryFilters'
+import { InventoryActions } from '../components/equipment/InventoryActions'
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 const CATEGORY_DATALIST_ID = 'equipment-category-suggestions'
 
-type InventoryActionKind = 'edit' | 'maintenance' | 'available' | 'delete'
 type WarningFilter = 'all' | 'none' | 'dueSoon' | 'overdue'
 type InventorySortField = 'asset' | 'assignee' | 'serial' | 'status' | 'recorded'
 
@@ -83,9 +71,9 @@ function EquipmentListPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  const [createForm, setCreateForm] = useState<EquipmentFormState>(emptyForm)
+  const [createForm, setCreateForm] = useState<EquipmentFormState>(emptyEquipmentForm)
   const [editingEquipmentId, setEditingEquipmentId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<EquipmentFormState>(emptyForm)
+  const [editForm, setEditForm] = useState<EquipmentFormState>(emptyEquipmentForm)
 
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -197,7 +185,7 @@ function EquipmentListPage() {
 
   function cancelEdit() {
     setEditingEquipmentId(null)
-    setEditForm(emptyForm)
+    setEditForm(emptyEquipmentForm)
   }
 
   async function handleImageChange(
@@ -285,7 +273,7 @@ function EquipmentListPage() {
       })
 
       setSuccessMessage(t.inventory.createSuccess)
-      setCreateForm(emptyForm)
+      setCreateForm(emptyEquipmentForm)
       setIsCreatePanelOpen(false)
       await loadEquipments()
     } catch (error: any) {
@@ -316,7 +304,7 @@ function EquipmentListPage() {
 
       setSuccessMessage(t.inventory.updateSuccess)
       setEditingEquipmentId(null)
-      setEditForm(emptyForm)
+      setEditForm(emptyEquipmentForm)
       await loadEquipments()
     } catch (error: any) {
       const apiMessage = error?.response?.data?.message || t.inventory.updateError
@@ -509,20 +497,6 @@ function EquipmentListPage() {
     })
   }
 
-  function renderEquipmentMedia(imageUrl: string | null | undefined, name: string) {
-    return (
-      <div className="equipment-card__media">
-        <ProtectedAssetImage
-          imageUrl={imageUrl}
-          alt={name}
-          className="equipment-card__image"
-          placeholderClassName="equipment-card__image-placeholder"
-          placeholderText={t.common.noImage}
-        />
-      </div>
-    )
-  }
-
   function getStatusContext(equipment: EquipmentListItem) {
     const isCurrentUserAssignee =
       !!user?.name &&
@@ -568,7 +542,7 @@ function EquipmentListPage() {
     )
   }
 
-  function getDueState(dueAt: string | null) {
+  function getDueState(dueAt: string | null): InventoryDueState | null {
     if (!dueAt) {
       return null
     }
@@ -630,199 +604,22 @@ function EquipmentListPage() {
     )
   }
 
-  function renderActionIcon(kind: InventoryActionKind) {
-    switch (kind) {
-      case 'edit':
-        return (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="m4 20 4.2-.8L19 8.4a1.9 1.9 0 0 0 0-2.7l-.7-.7a1.9 1.9 0 0 0-2.7 0L4.8 15.8 4 20Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="m13.8 6.8 3.4 3.4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-        )
-      case 'maintenance':
-        return (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M20 6.2a4.1 4.1 0 0 1-5.6 3.8l-7.8 7.8a1.6 1.6 0 0 1-2.3 0l-.1-.1a1.6 1.6 0 0 1 0-2.3l7.8-7.8A4.1 4.1 0 0 1 17.8 4l-2.2 2.2 1.9 1.9L20 6.2Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )
-      case 'available':
-        return (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="m5 12 4.2 4.2L19 6.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )
-      case 'delete':
-        return (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 7h16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-            <path
-              d="M9.5 4h5L15 7H9l.5-3Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M7 7l1 12h8l1-12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )
-    }
-  }
-
   function renderInventoryActions(
     equipment: EquipmentListItem,
     options?: { compact?: boolean; shortLabels?: boolean },
   ) {
-    const compact = options?.compact ?? false
-    const shortLabels = options?.shortLabels ?? false
-    const useShortLabels = compact || shortLabels
-    const isCardAction = shortLabels && !compact
-    const detailsActionClass = isCardAction
-      ? ' button-card-action button-card-action--details'
-      : ''
-    const editActionClass = isCardAction
-      ? ' button-card-action button-card-action--edit'
-      : ''
-    const maintenanceActionClass = isCardAction
-      ? ' button-card-action button-card-action--maintenance'
-      : ''
-    const availableActionClass = isCardAction
-      ? ' button-card-action button-card-action--available'
-      : ''
-    const deleteActionClass = isCardAction
-      ? ' button-card-action button-card-action--delete'
-      : ''
-    const detailsLabel = useShortLabels
-      ? t.inventory.compactDetails
-      : t.inventory.details
-    const editLabel = useShortLabels ? t.inventory.compactEdit : t.inventory.edit
-    const maintenanceLabel = useShortLabels
-      ? t.inventory.compactMaintenance
-      : t.inventory.makeMaintenance
-    const availableLabel = useShortLabels
-      ? t.inventory.compactAvailable
-      : t.inventory.makeAvailable
-    const deleteLabel = useShortLabels ? t.inventory.compactDelete : t.inventory.delete
-    const editContent = compact ? renderActionIcon('edit') : editLabel
-    const maintenanceContent = compact
-      ? renderActionIcon('maintenance')
-      : maintenanceLabel
-    const availableContent = compact
-      ? renderActionIcon('available')
-      : availableLabel
-    const deleteContent = compact ? renderActionIcon('delete') : deleteLabel
-    const compactClass = compact ? ' button-icon' : ''
-
     return (
-      <>
-        <Link
-          to={`/equipment/${equipment.id}`}
-          className={`button-link button-secondary${
-            compact ? ' button-compact-label' : detailsActionClass
-          }`}
-          title={t.inventory.details}
-          aria-label={t.inventory.details}
-        >
-          {detailsLabel}
-        </Link>
-
-        {isAdmin && (
-          <button
-            type="button"
-            className={
-              compact ? 'button-icon' : isCardAction ? editActionClass.trim() : undefined
-            }
-            onClick={() => startEdit(equipment)}
-            title={t.inventory.edit}
-            aria-label={t.inventory.edit}
-          >
-            {editContent}
-          </button>
-        )}
-
-        {isAdmin && equipment.status === 'Available' && (
-          <button
-            type="button"
-            className={`button-secondary${
-              compact
-                ? `${compactClass} button-icon--maintenance`
-                : maintenanceActionClass
-            }`}
-            onClick={() => handleMarkMaintenance(equipment.id)}
-            disabled={statusChangingEquipmentId === equipment.id}
-            title={t.inventory.makeMaintenance}
-            aria-label={t.inventory.makeMaintenance}
-          >
-            {statusChangingEquipmentId === equipment.id ? '...' : maintenanceContent}
-          </button>
-        )}
-
-        {isAdmin && equipment.status === 'Maintenance' && (
-          <button
-            type="button"
-            className={`button-secondary${compact ? compactClass : availableActionClass}`}
-            onClick={() => handleMarkAvailable(equipment.id)}
-            disabled={statusChangingEquipmentId === equipment.id}
-            title={t.inventory.makeAvailable}
-            aria-label={t.inventory.makeAvailable}
-          >
-            {statusChangingEquipmentId === equipment.id ? '...' : availableContent}
-          </button>
-        )}
-
-        {isAdmin && (
-          <button
-            type="button"
-            className={`button-danger${compact ? compactClass : deleteActionClass}`}
-            onClick={() => handleDelete(equipment.id)}
-            disabled={deletingEquipmentId === equipment.id}
-            title={t.inventory.delete}
-            aria-label={t.inventory.delete}
-          >
-            {deletingEquipmentId === equipment.id ? '...' : deleteContent}
-          </button>
-        )}
-      </>
+      <InventoryActions
+        deletingEquipmentId={deletingEquipmentId}
+        equipment={equipment}
+        isAdmin={isAdmin}
+        onDelete={handleDelete}
+        onEdit={startEdit}
+        onMarkAvailable={handleMarkAvailable}
+        onMarkMaintenance={handleMarkMaintenance}
+        options={options}
+        statusChangingEquipmentId={statusChangingEquipmentId}
+      />
     )
   }
 
@@ -831,224 +628,43 @@ function EquipmentListPage() {
     const canSeeDueState = canSeeCheckoutDetails(equipment)
     const dueState = canSeeDueState ? getDueState(equipment.activeCheckoutDueAt) : null
 
-    return (
-      <article
-        key={equipment.id}
-        className={`equipment-card${
-          editingEquipmentId === equipment.id ? ' equipment-card--editing' : ''
-        }`}
-      >
-        {editingEquipmentId === equipment.id ? (
-          <form
-            className="auth-form admin-form"
+    if (editingEquipmentId === equipment.id) {
+      return (
+        <article key={equipment.id} className="equipment-card equipment-card--editing">
+          <EquipmentForm
+            categoryDatalistId={CATEGORY_DATALIST_ID}
+            form={editForm}
+            idPrefix={`edit-${equipment.id}`}
+            isSubmitting={isUpdating}
+            mediaFallbackName={equipment.name}
+            onCancel={cancelEdit}
+            onCategoryBlur={normalizeEditCategory}
+            onCategoryChange={updateEditCategory}
+            onImageChange={(event) => handleImageChange(event, 'edit')}
+            onRemoveImage={() => removeImage('edit')}
             onSubmit={(event) => handleEditSubmit(event, equipment.id)}
-          >
-            <div className="admin-form__fields">
-              <div className="section-heading section-heading--tight">
-                <div>
-                  <span className="section-heading__eyebrow">
-                    {t.inventory.editingKicker}
-                  </span>
-                  <h3 className="section-heading__title">{t.inventory.editingTitle}</h3>
-                </div>
-                <p className="section-heading__text">{t.inventory.editingText}</p>
-              </div>
+            setForm={setEditForm}
+            submitLabel={t.inventory.saveChanges}
+            submittingLabel={t.inventory.saving}
+            titleBlock={{
+              kicker: t.inventory.editingKicker,
+              title: t.inventory.editingTitle,
+              text: t.inventory.editingText,
+            }}
+          />
+        </article>
+      )
+    }
 
-              <div className="form-row">
-                <div className="form-field">
-                  <label htmlFor={`edit-name-${equipment.id}`}>{t.inventory.name}</label>
-                  <input
-                    id={`edit-name-${equipment.id}`}
-                    type="text"
-                    value={editForm.name}
-                    onChange={(event) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        name: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor={`edit-category-${equipment.id}`}>
-                    {t.inventory.category}
-                  </label>
-                  <input
-                    id={`edit-category-${equipment.id}`}
-                    type="text"
-                    list={CATEGORY_DATALIST_ID}
-                    value={editForm.category}
-                    onChange={(event) => updateEditCategory(event.target.value)}
-                    onBlur={normalizeEditCategory}
-                    autoComplete="off"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor={`edit-serial-${equipment.id}`}>{t.inventory.serial}</label>
-                <input
-                  id={`edit-serial-${equipment.id}`}
-                  type="text"
-                  value={editForm.serialNumber}
-                  onChange={(event) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      serialNumber: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor={`edit-description-${equipment.id}`}>
-                  {t.inventory.description}
-                </label>
-                <textarea
-                  id={`edit-description-${equipment.id}`}
-                  value={editForm.description}
-                  onChange={(event) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      description: event.target.value,
-                    }))
-                  }
-                  rows={5}
-                />
-              </div>
-
-              <div className="form-actions">
-                <button type="submit" className="form-submit" disabled={isUpdating}>
-                  {isUpdating ? t.inventory.saving : t.inventory.saveChanges}
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={cancelEdit}
-                  disabled={isUpdating}
-                >
-                  {t.inventory.cancel}
-                </button>
-              </div>
-            </div>
-
-            <aside className="admin-form__aside">
-              <div className="form-field">
-                <span>{t.inventory.image}</span>
-                <div className="upload-control">
-                  <input
-                    id={`edit-image-${equipment.id}`}
-                    className="upload-control__input"
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleImageChange(event, 'edit')}
-                  />
-                  <label htmlFor={`edit-image-${equipment.id}`} className="upload-control__button">
-                    {editForm.imagePreviewUrl ? t.inventory.imageReplace : t.inventory.imageSelect}
-                  </label>
-                  <span className="form-field__hint">{t.inventory.imageHint}</span>
-                </div>
-              </div>
-
-              <div className="asset-image-field">
-                <span className="asset-image-field__label">{t.inventory.imagePreview}</span>
-                {renderEquipmentMedia(editForm.imagePreviewUrl, editForm.name || equipment.name)}
-                {editForm.imagePreviewUrl && (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => removeImage('edit')}
-                  >
-                    {t.inventory.imageRemove}
-                  </button>
-                )}
-              </div>
-            </aside>
-          </form>
-        ) : (
-          <div className="equipment-card__layout equipment-card__layout--media-first">
-            {renderEquipmentMedia(equipment.imageUrl, equipment.name)}
-
-            <div className="equipment-card__main">
-              <div className="equipment-card__header">
-                <div className="equipment-card__title-group">
-                  <div className="equipment-card__title-row">
-                    <Link to={`/equipment/${equipment.id}`} className="context-link">
-                      <h3 className="equipment-card__title-small context-link__primary">
-                        {equipment.name}
-                      </h3>
-                    </Link>
-                    {dueState?.alertLabel && (
-                      <span className={dueState.alertClass ?? undefined}>
-                        {dueState.alertLabel}
-                      </span>
-                    )}
-                  </div>
-                  <span className="equipment-card__serial">SN {equipment.serialNumber}</span>
-                  <div className="equipment-card__signal-row">
-                    <span className="equipment-category-chip">{equipment.category}</span>
-                  </div>
-                </div>
-                <span className={getStatusBadgeClass(equipment.status)}>
-                  {getStatusLabel(equipment.status, language)}
-                </span>
-              </div>
-
-              {statusContext && (
-                <div className="inventory-status-context">
-                  <span className="inventory-status-context__label">
-                    {statusContext.label}
-                  </span>
-                  <strong className="inventory-status-context__value">
-                    {statusContext.value}
-                  </strong>
-                  {canSeeDueState && equipment.activeCheckoutDueAt && (
-                    <span className="inventory-status-context__meta">
-                      {dueState?.detailLabel}:{' '}
-                      {formatDateTime(equipment.activeCheckoutDueAt, language)}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="equipment-meta">
-                <div className="equipment-meta__item">
-                  <span className="equipment-meta__label">{t.inventory.recordedAt}</span>
-                  <span className="equipment-meta__value">
-                    {formatDate(equipment.createdAt, language)}
-                  </span>
-                </div>
-
-                {equipment.activeCheckoutDueAt && (
-                  <div className="equipment-meta__item">
-                    <span className="equipment-meta__label">{t.details.deadlinePrefix}</span>
-                    <span className="equipment-meta__value">
-                      {formatDateTime(equipment.activeCheckoutDueAt, language)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {equipment.description && (
-                <div className="equipment-description">
-                  <span className="equipment-description__label">
-                    {t.inventory.description}
-                  </span>
-                  <p className="equipment-description__text">{equipment.description}</p>
-                </div>
-              )}
-
-              <div className="equipment-card__actions">
-                {renderInventoryActions(equipment, { shortLabels: true })}
-              </div>
-            </div>
-          </div>
-        )}
-      </article>
+    return (
+      <InventoryEquipmentCard
+        key={equipment.id}
+        actions={renderInventoryActions(equipment, { shortLabels: true })}
+        canSeeDueState={canSeeDueState}
+        dueState={dueState}
+        equipment={equipment}
+        statusContext={statusContext}
+      />
     )
   }
 
@@ -1141,208 +757,56 @@ function EquipmentListPage() {
           </div>
 
           {isCreatePanelOpen && (
-            <form className="auth-form admin-form" onSubmit={handleCreateSubmit}>
-              <div className="admin-form__fields">
-                <div className="form-row">
-                  <div className="form-field">
-                    <label htmlFor="create-name">{t.inventory.name}</label>
-                    <input
-                      id="create-name"
-                      type="text"
-                      value={createForm.name}
-                      onChange={(event) =>
-                        setCreateForm((prev) => ({ ...prev, name: event.target.value }))
-                      }
-                      placeholder={t.inventory.createNamePlaceholder}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="create-category">{t.inventory.category}</label>
-                    <input
-                      id="create-category"
-                      type="text"
-                      list={CATEGORY_DATALIST_ID}
-                      value={createForm.category}
-                      onChange={(event) => updateCreateCategory(event.target.value)}
-                      onBlur={normalizeCreateCategory}
-                      placeholder={t.inventory.createCategoryPlaceholder}
-                      autoComplete="off"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="create-serial">{t.inventory.serial}</label>
-                  <input
-                    id="create-serial"
-                    type="text"
-                    value={createForm.serialNumber}
-                    onChange={(event) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        serialNumber: event.target.value,
-                      }))
-                    }
-                    placeholder={t.inventory.createSerialPlaceholder}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="create-description">{t.inventory.description}</label>
-                  <textarea
-                    id="create-description"
-                    value={createForm.description}
-                    onChange={(event) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        description: event.target.value,
-                      }))
-                    }
-                    placeholder={t.inventory.createDescriptionPlaceholder}
-                    rows={5}
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="form-submit" disabled={isCreating}>
-                    {isCreating ? t.inventory.saving : t.inventory.saveItem}
-                  </button>
-                </div>
-              </div>
-
-              <aside className="admin-form__aside">
-                <div className="form-field">
-                  <span>{t.inventory.image}</span>
-                  <div className="upload-control">
-                    <input
-                      id="create-image"
-                      className="upload-control__input"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => handleImageChange(event, 'create')}
-                    />
-                    <label htmlFor="create-image" className="upload-control__button">
-                      {createForm.imagePreviewUrl
-                        ? t.inventory.imageReplace
-                        : t.inventory.imageSelect}
-                    </label>
-                    <span className="form-field__hint">{t.inventory.imageHint}</span>
-                  </div>
-                </div>
-
-                <div className="asset-image-field">
-                  <span className="asset-image-field__label">{t.inventory.imagePreview}</span>
-                  {renderEquipmentMedia(
-                    createForm.imagePreviewUrl,
-                    createForm.name || t.inventory.name,
-                  )}
-                  {createForm.imagePreviewUrl && (
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => removeImage('create')}
-                    >
-                      {t.inventory.imageRemove}
-                    </button>
-                  )}
-                </div>
-              </aside>
-            </form>
+            <EquipmentForm
+              categoryDatalistId={CATEGORY_DATALIST_ID}
+              form={createForm}
+              idPrefix="create"
+              isSubmitting={isCreating}
+              mediaFallbackName={t.inventory.name}
+              onCategoryBlur={normalizeCreateCategory}
+              onCategoryChange={updateCreateCategory}
+              onImageChange={(event) => handleImageChange(event, 'create')}
+              onRemoveImage={() => removeImage('create')}
+              onSubmit={handleCreateSubmit}
+              setForm={setCreateForm}
+              submitLabel={t.inventory.saveItem}
+              submittingLabel={t.inventory.saving}
+            />
           )}
         </section>
       )}
 
-      <section className="section-card section-card--compact filter-panel">
-        <div className="filter-panel__grid filter-panel__grid--inventory">
-          <div className="form-field">
-            <label htmlFor="inventory-search">{t.common.search}</label>
-            <input
-              id="inventory-search"
-              type="search"
-              value={searchQuery}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  search: event.target.value.trim() ? event.target.value : null,
-                })
-              }
-              placeholder={t.inventory.searchPlaceholder}
-            />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="inventory-status-filter">{t.inventory.statusFilterLabel}</label>
-            <select
-              id="inventory-status-filter"
-              value={statusFilter}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  status: event.target.value === 'all' ? null : event.target.value,
-                  warning: event.target.value === 'CheckedOut' ? searchParams.get('warning') : null,
-                })
-              }
-            >
-              <option value="all">{t.inventory.allStatuses}</option>
-              <option value="Available">{t.inventory.available}</option>
-              <option value="CheckedOut">{t.inventory.checkedOut}</option>
-              <option value="Maintenance">{t.inventory.maintenance}</option>
-            </select>
-          </div>
-
-          {statusFilter === 'CheckedOut' && (
-            <div className="form-field">
-              <label htmlFor="inventory-warning-filter">{t.common.warningFilterLabel}</label>
-              <select
-                id="inventory-warning-filter"
-                value={warningFilter}
-                onChange={(event) =>
-                  setMergedSearchParams(setSearchParams, {
-                    warning: event.target.value === 'all' ? null : event.target.value,
-                  })
-                }
-              >
-                <option value="all">{t.common.allWarnings}</option>
-                <option value="none">{t.common.noWarning}</option>
-                <option value="dueSoon">{t.common.warningDueSoon}</option>
-                <option value="overdue">{t.common.warningOverdue}</option>
-              </select>
-            </div>
-          )}
-
-          <div className="form-field">
-            <label htmlFor="inventory-category-filter">{t.inventory.categoryFilterLabel}</label>
-            <select
-              id="inventory-category-filter"
-              value={categoryFilter}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  category: event.target.value === 'all' ? null : event.target.value,
-                })
-              }
-            >
-              <option value="all">{t.inventory.allCategories}</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-
-        </div>
-
-        <div className="filter-panel__footer">
-          <p className="filter-panel__summary">
-            {filteredEquipments.length} / {equipments.length}
-          </p>
-          <button type="button" className="button-secondary" onClick={resetFilters}>
-            {t.common.clearFilters}
-          </button>
-        </div>
-      </section>
+      <InventoryFilters
+        categories={categories}
+        categoryFilter={categoryFilter}
+        equipmentCount={equipments.length}
+        filteredCount={filteredEquipments.length}
+        onCategoryChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            category: value === 'all' ? null : value,
+          })
+        }
+        onReset={resetFilters}
+        onSearchChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            search: value.trim() ? value : null,
+          })
+        }
+        onStatusChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            status: value === 'all' ? null : value,
+            warning: value === 'CheckedOut' ? searchParams.get('warning') : null,
+          })
+        }
+        onWarningChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            warning: value === 'all' ? null : value,
+          })
+        }
+        searchQuery={searchQuery}
+        statusFilter={statusFilter}
+        warningFilter={warningFilter}
+      />
 
       <section className="inventory-stack">
           <div className="section-heading section-heading--toolbar">
@@ -1411,6 +875,7 @@ function EquipmentListPage() {
               </div>
 
               {filteredEquipments.map((equipment) => {
+                const statusContext = getStatusContext(equipment)
                 const canSeeDueState = canSeeCheckoutDetails(equipment)
                 const dueState = canSeeDueState
                   ? getDueState(equipment.activeCheckoutDueAt)
@@ -1419,91 +884,14 @@ function EquipmentListPage() {
                 return editingEquipmentId === equipment.id ? (
                   renderEquipmentCard(equipment)
                 ) : (
-                  <article key={equipment.id} className="data-list__row">
-                    <div className="data-list__cell data-list__cell--primary">
-                      <div className="data-list__asset">
-                        <div className="data-list__thumb">
-                          <ProtectedAssetImage
-                            imageUrl={equipment.imageUrl}
-                            alt={equipment.name}
-                            className="data-list__thumb-image"
-                            placeholderClassName="data-list__thumb-placeholder"
-                            placeholderText={t.common.noImage}
-                          />
-                        </div>
-
-                        <div className="data-list__asset-copy">
-                          <div className="data-list__title-row">
-                            <Link to={`/equipment/${equipment.id}`} className="context-link">
-                              <strong className="data-list__primary-text context-link__primary">
-                                {equipment.name}
-                              </strong>
-                            </Link>
-                            {dueState?.alertLabel && (
-                              <span className={dueState.alertClass ?? undefined}>
-                                {dueState.alertLabel}
-                              </span>
-                            )}
-                          </div>
-                          <span className="data-list__secondary-text">
-                            {equipment.category}
-                          </span>
-                          <span className="data-list__tertiary-text">
-                            {equipment.description || t.inventory.listDescriptionFallback}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="data-list__cell data-list__cell--context">
-                      <span className="data-list__mobile-label">{t.inventory.assignee}</span>
-                      {getStatusContext(equipment) ? (
-                        <div className="data-list__context-stack">
-                          <span className="data-list__context-label">
-                            {getStatusContext(equipment)?.label}
-                          </span>
-                          <strong className="data-list__context-name">
-                            {getStatusContext(equipment)?.value}
-                          </strong>
-                          {canSeeDueState && equipment.activeCheckoutDueAt && (
-                            <span className="data-list__context-value">
-                              {dueState?.detailLabel}:{' '}
-                              {formatDateTime(equipment.activeCheckoutDueAt, language)}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="data-list__context-placeholder">-</span>
-                      )}
-                    </div>
-
-                    <div className="data-list__cell">
-                      <span className="data-list__mobile-label">{t.inventory.serial}</span>
-                      <span className="data-list__value">{equipment.serialNumber}</span>
-                    </div>
-
-                    <div className="data-list__cell">
-                      <span className="data-list__mobile-label">{t.common.status}</span>
-                      <div className="data-list__status-stack">
-                        <span className={getStatusBadgeClass(equipment.status)}>
-                          {getStatusLabel(equipment.status, language)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="data-list__cell">
-                      <span className="data-list__mobile-label">{t.inventory.recordedAt}</span>
-                      <span className="data-list__value">
-                        {formatDate(equipment.createdAt, language)}
-                      </span>
-                    </div>
-
-                    <div className="data-list__cell data-list__cell--actions">
-                      <div className="data-list__action-row">
-                        {renderInventoryActions(equipment, { compact: true })}
-                      </div>
-                    </div>
-                  </article>
+                  <InventoryEquipmentRow
+                    key={equipment.id}
+                    actions={renderInventoryActions(equipment, { compact: true })}
+                    canSeeDueState={canSeeDueState}
+                    dueState={dueState}
+                    equipment={equipment}
+                    statusContext={statusContext}
+                  />
                 )
               })}
             </div>

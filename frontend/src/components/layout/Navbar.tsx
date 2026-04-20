@@ -1,9 +1,9 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { REGISTRATION_ENABLED } from '../config/runtime'
-import { useLanguage } from '../context/LanguageContext'
-import { getRoleLabel } from '../utils/presentation'
+import { REGISTRATION_ENABLED } from '../../config/runtime'
+import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
+import { getRoleLabel } from '../../utils/presentation'
 
 function Navbar() {
   const { isAuthenticated, user, logout } = useAuth()

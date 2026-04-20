@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { getAllCheckouts } from '../api/checkoutApi'
-import { ProtectedAssetImage } from '../components/ProtectedAssetImage'
+import { CheckoutLogFilters } from '../components/checkout/CheckoutLogFilters'
+import { ProtectedAssetImage } from '../components/media/ProtectedAssetImage'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
@@ -320,74 +321,30 @@ function AllCheckoutsPage() {
         </article>
       </section>
 
-      <section className="section-card section-card--compact filter-panel">
-        <div className="filter-panel__grid filter-panel__grid--checkout-log">
-          <div className="form-field">
-            <label htmlFor="all-checkouts-search">{t.common.search}</label>
-            <input
-              id="all-checkouts-search"
-              type="search"
-              value={searchQuery}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  search: event.target.value.trim() ? event.target.value : null,
-                })
-              }
-              placeholder={t.checkouts.allSearchPlaceholder}
-            />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="all-checkouts-status-filter">
-              {t.checkouts.statusFilterLabel}
-            </label>
-            <select
-              id="all-checkouts-status-filter"
-              value={statusFilter}
-              onChange={(event) =>
-                setMergedSearchParams(setSearchParams, {
-                  state: event.target.value === 'all' ? null : event.target.value,
-                  warning: event.target.value === 'active' ? searchParams.get('warning') : null,
-                })
-              }
-            >
-              <option value="all">{t.checkouts.filterAll}</option>
-              <option value="active">{t.checkouts.filterActive}</option>
-              <option value="closed">{t.checkouts.filterClosed}</option>
-            </select>
-          </div>
-
-          {statusFilter === 'active' && (
-            <div className="form-field">
-              <label htmlFor="all-checkouts-warning-filter">{t.common.warningFilterLabel}</label>
-              <select
-                id="all-checkouts-warning-filter"
-                value={warningFilter}
-                onChange={(event) =>
-                  setMergedSearchParams(setSearchParams, {
-                    warning: event.target.value === 'all' ? null : event.target.value,
-                  })
-                }
-              >
-                <option value="all">{t.common.allWarnings}</option>
-                <option value="none">{t.common.noWarning}</option>
-                <option value="dueSoon">{t.common.warningDueSoon}</option>
-                <option value="overdue">{t.common.warningOverdue}</option>
-              </select>
-            </div>
-          )}
-
-        </div>
-
-        <div className="filter-panel__footer">
-          <p className="filter-panel__summary">
-            {filteredCheckouts.length} / {checkouts.length}
-          </p>
-          <button type="button" className="button-secondary" onClick={resetFilters}>
-            {t.common.clearFilters}
-          </button>
-        </div>
-      </section>
+      <CheckoutLogFilters
+        checkoutCount={checkouts.length}
+        filteredCount={filteredCheckouts.length}
+        onReset={resetFilters}
+        onSearchChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            search: value.trim() ? value : null,
+          })
+        }
+        onStateChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            state: value === 'all' ? null : value,
+            warning: value === 'active' ? searchParams.get('warning') : null,
+          })
+        }
+        onWarningChange={(value) =>
+          setMergedSearchParams(setSearchParams, {
+            warning: value === 'all' ? null : value,
+          })
+        }
+        searchQuery={searchQuery}
+        stateFilter={statusFilter}
+        warningFilter={warningFilter}
+      />
 
       {checkouts.length === 0 ? (
         <div className="empty-state">
