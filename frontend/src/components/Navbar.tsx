@@ -226,8 +226,39 @@ function Navbar() {
                           setIsUserMenuHoverSuppressed(false)
                         }}
                       >
-                        <span className="navbar__menu-link-title">{t.nav.profile}</span>
-                        <span className="navbar__menu-link-text">{t.nav.profileHint}</span>
+                        <span className="navbar__menu-link-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path
+                              d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                            <path
+                              d="M5 20a7 7 0 0 1 14 0"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </span>
+                        <span className="navbar__menu-link-copy">
+                          <span className="navbar__menu-link-title">{t.nav.profile}</span>
+                          <span className="navbar__menu-link-text">{t.nav.profileHint}</span>
+                        </span>
+                        <span className="navbar__menu-link-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path
+                              d="m9 6 6 6-6 6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
                       </NavLink>
 
                       <NavLink
@@ -241,8 +272,40 @@ function Navbar() {
                           setIsUserMenuHoverSuppressed(false)
                         }}
                       >
-                        <span className="navbar__menu-link-title">{t.nav.settings}</span>
-                        <span className="navbar__menu-link-text">{t.nav.settingsHint}</span>
+                        <span className="navbar__menu-link-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path
+                              d="M12 9.2A2.8 2.8 0 1 0 12 14.8 2.8 2.8 0 0 0 12 9.2Z"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                            <path
+                              d="M19.4 13.5v-3l-2-.5a5.9 5.9 0 0 0-.7-1.6l1.1-1.7-2.1-2.1-1.7 1.1a5.9 5.9 0 0 0-1.6-.7l-.5-2h-3l-.5 2a5.9 5.9 0 0 0-1.6.7L5.8 4.6 3.7 6.7l1.1 1.7a5.9 5.9 0 0 0-.7 1.6l-2 .5v3l2 .5c.1.6.4 1.1.7 1.6l-1.1 1.7 2.1 2.1 1.7-1.1c.5.3 1 .6 1.6.7l.5 2h3l.5-2c.6-.1 1.1-.4 1.6-.7l1.7 1.1 2.1-2.1-1.1-1.7c.3-.5.6-1 .7-1.6l2-.5Z"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                        <span className="navbar__menu-link-copy">
+                          <span className="navbar__menu-link-title">{t.nav.settings}</span>
+                          <span className="navbar__menu-link-text">{t.nav.settingsHint}</span>
+                        </span>
+                        <span className="navbar__menu-link-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path
+                              d="m9 6 6 6-6 6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
                       </NavLink>
                     </div>
 
@@ -255,6 +318,33 @@ function Navbar() {
                         logout()
                       }}
                     >
+                      <span className="navbar__dropdown-logout-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                          <path
+                            d="M14 7V5.5A1.5 1.5 0 0 0 12.5 4h-6A1.5 1.5 0 0 0 5 5.5v13A1.5 1.5 0 0 0 6.5 20h6a1.5 1.5 0 0 0 1.5-1.5V17"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M10 12h9"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="m16 8 4 4-4 4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
                       {t.nav.logout}
                     </button>
                   </div>

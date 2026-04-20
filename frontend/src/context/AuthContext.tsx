@@ -25,6 +25,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (data: LoginRequest) => Promise<void>
   logout: () => void
+  updateUser: (nextUser: AuthUser) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -58,6 +59,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(() => {
     clearSession()
   }, [clearSession])
+
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    setStoredUser(nextUser)
+    setUser(nextUser)
+  }, [])
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -96,8 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isAuthenticated: !!token,
       login,
       logout,
+      updateUser,
     }),
-    [user, token],
+    [logout, token, updateUser, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

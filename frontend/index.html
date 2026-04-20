@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.ico"/>
+    <link rel="icon" href="/favicon.ico" />
+    <script>
+      (() => {
+        const storedAppearance = localStorage.getItem('asset-management-appearance')
+        const appearance =
+          storedAppearance === 'light' || storedAppearance === 'dark'
+            ? storedAppearance
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+
+        document.documentElement.dataset.theme = appearance
+        document.documentElement.style.colorScheme = appearance
+      })()
+    </script>
     <title>Asset Management Webapp</title>
   </head>
   <body>

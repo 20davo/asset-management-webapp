@@ -6,11 +6,12 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import type { ManagedUser } from '../types/user'
-import { isCheckoutOverdue } from '../utils/presentation'
+import { getRoleLabel, isCheckoutOverdue } from '../utils/presentation'
 import {
   getEnumSearchParam,
   getTextSearchParam,
   setMergedSearchParams,
+  toggleSortSearchParams,
 } from '../utils/searchParams'
 
 interface UserSummaryCard extends ManagedUser {
@@ -20,20 +21,35 @@ interface UserSummaryCard extends ManagedUser {
   closedCheckouts: number
 }
 
+type UserSortField =
+  | 'name'
+  | 'role'
+  | 'activeCheckouts'
+  | 'overdueCheckouts'
+  | 'totalCheckouts'
+  | 'closedCheckouts'
+
 function UsersPage() {
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
   const [users, setUsers] = useState<UserSummaryCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const searchQuery = getTextSearchParam(searchParams, 'search')
-  const sortBy = getEnumSearchParam(
+  const roleFilter = getEnumSearchParam(
+    searchParams,
+    'role',
+    ['all', 'Admin', 'User'] as const,
+    'all',
+  )
+  const sortField = getEnumSearchParam(
     searchParams,
     'sort',
-    ['name', 'activity'] as const,
+    ['name', 'role', 'activeCheckouts', 'overdueCheckouts', 'totalCheckouts', 'closedCheckouts'] as const,
     'name',
   )
+  const sortDirection = getEnumSearchParam(searchParams, 'dir', ['asc', 'desc'] as const, 'asc')
 
   useEffect(() => {
     async function loadUsers() {
@@ -41,8 +57,7 @@ function UsersPage() {
         setErrorMessage('')
         const [allUsers, allCheckouts] = await Promise.all([getUsers(), getAllCheckouts()])
 
-        const regularUsers = allUsers.filter((candidate) => candidate.role === 'User')
-        const userCards = regularUsers.map((candidate) =>
+        const userCards = allUsers.map((candidate) =>
           buildUserSummary(candidate, allCheckouts),
         )
 
@@ -62,33 +77,83 @@ function UsersPage() {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     const result = users.filter((candidate) => {
+      const matchesRole = roleFilter === 'all' ? true : candidate.role === roleFilter
+
       if (normalizedQuery.length === 0) {
-        return true
+        return matchesRole
       }
 
-      return [candidate.name, candidate.email].join(' ').toLowerCase().includes(normalizedQuery)
+      return (
+        matchesRole &&
+        [candidate.name, candidate.email].join(' ').toLowerCase().includes(normalizedQuery)
+      )
     })
 
     result.sort((left, right) => {
-      if (sortBy === 'activity') {
-        return right.activeCheckouts - left.activeCheckouts || left.name.localeCompare(right.name)
-      }
+      const multiplier = sortDirection === 'asc' ? 1 : -1
 
-      return left.name.localeCompare(right.name)
+      switch (sortField) {
+        case 'role':
+          return (
+            getRoleLabel(left.role, language).localeCompare(getRoleLabel(right.role, language)) *
+            multiplier
+          )
+        case 'activeCheckouts':
+          return (
+            (left.activeCheckouts - right.activeCheckouts) * multiplier ||
+            left.name.localeCompare(right.name, language)
+          )
+        case 'overdueCheckouts':
+          return (
+            (left.overdueCheckouts - right.overdueCheckouts) * multiplier ||
+            left.name.localeCompare(right.name, language)
+          )
+        case 'totalCheckouts':
+          return (
+            (left.totalCheckouts - right.totalCheckouts) * multiplier ||
+            left.name.localeCompare(right.name, language)
+          )
+        case 'closedCheckouts':
+          return (
+            (left.closedCheckouts - right.closedCheckouts) * multiplier ||
+            left.name.localeCompare(right.name, language)
+          )
+        case 'name':
+        default:
+          return left.name.localeCompare(right.name, language) * multiplier
+      }
     })
 
     return result
-  }, [searchQuery, sortBy, users])
+  }, [language, roleFilter, searchQuery, sortDirection, sortField, users])
 
-  const totalCheckouts = users.reduce((sum, candidate) => sum + candidate.totalCheckouts, 0)
+  const adminCount = users.filter((candidate) => candidate.role === 'Admin').length
   const activeCheckouts = users.reduce((sum, candidate) => sum + candidate.activeCheckouts, 0)
-  const overdueCheckouts = users.reduce((sum, candidate) => sum + candidate.overdueCheckouts, 0)
-
   function resetFilters() {
     setMergedSearchParams(setSearchParams, {
       search: null,
+      role: null,
       sort: null,
+      dir: null,
     })
+  }
+
+  function renderSortableHeading(field: UserSortField, label: string) {
+    const isActive = sortField === field
+    const icon = !isActive ? '↕' : sortDirection === 'asc' ? '↑' : '↓'
+
+    return (
+      <button
+        type="button"
+        className="data-list__sort-button"
+        onClick={() => toggleSortSearchParams(setSearchParams, 'sort', 'dir', field)}
+      >
+        <span>{label}</span>
+        <span className="data-list__sort-icon" aria-hidden="true">
+          {icon}
+        </span>
+      </button>
+    )
   }
 
   if (user?.role !== 'Admin') {
@@ -123,19 +188,19 @@ function UsersPage() {
 
       <section className="stats-grid stats-grid--three">
         <article className="stat-card">
-          <span className="stat-card__label">{t.users.totalTracked}</span>
-          <strong className="stat-card__value">{totalCheckouts}</strong>
-          <span className="stat-card__note">{t.users.totalTrackedNote}</span>
+          <span className="stat-card__label">{t.users.totalUsersLabel}</span>
+          <strong className="stat-card__value">{users.length}</strong>
+          <span className="stat-card__note">{t.users.totalUsersNote}</span>
+        </article>
+        <article className="stat-card">
+          <span className="stat-card__label">{t.users.adminUsersLabel}</span>
+          <strong className="stat-card__value">{adminCount}</strong>
+          <span className="stat-card__note">{t.users.adminUsersNote}</span>
         </article>
         <article className="stat-card">
           <span className="stat-card__label">{t.users.activeTracked}</span>
           <strong className="stat-card__value">{activeCheckouts}</strong>
           <span className="stat-card__note">{t.users.activeTrackedNote}</span>
-        </article>
-        <article className="stat-card">
-          <span className="stat-card__label">{t.users.overdueTracked}</span>
-          <strong className="stat-card__value">{overdueCheckouts}</strong>
-          <span className="stat-card__note">{t.users.overdueTrackedNote}</span>
         </article>
       </section>
 
@@ -157,18 +222,19 @@ function UsersPage() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="users-sort">{t.users.sortLabel}</label>
+            <label htmlFor="users-role-filter">{t.common.roleFilterLabel}</label>
             <select
-              id="users-sort"
-              value={sortBy}
+              id="users-role-filter"
+              value={roleFilter}
               onChange={(event) =>
                 setMergedSearchParams(setSearchParams, {
-                  sort: event.target.value === 'name' ? null : event.target.value,
+                  role: event.target.value === 'all' ? null : event.target.value,
                 })
               }
             >
-              <option value="name">{t.users.sortByName}</option>
-              <option value="activity">{t.users.sortByActivity}</option>
+              <option value="all">{t.common.allRoles}</option>
+              <option value="Admin">{getRoleLabel('Admin', language)}</option>
+              <option value="User">{getRoleLabel('User', language)}</option>
             </select>
           </div>
         </div>
@@ -207,11 +273,12 @@ function UsersPage() {
 
           <div className="data-list data-list--users">
             <div className="data-list__header">
-              <span className="data-list__heading">{t.common.user}</span>
-              <span className="data-list__heading">{t.users.activeCheckoutsLabel}</span>
-              <span className="data-list__heading">{t.users.overdueCheckoutsLabel}</span>
-              <span className="data-list__heading">{t.users.totalCheckoutsLabel}</span>
-              <span className="data-list__heading">{t.users.closedCheckoutsLabel}</span>
+              <span className="data-list__heading">{renderSortableHeading('name', t.common.user)}</span>
+              <span className="data-list__heading">{renderSortableHeading('role', t.profile.roleLabel)}</span>
+              <span className="data-list__heading">{renderSortableHeading('activeCheckouts', t.users.activeCheckoutsLabel)}</span>
+              <span className="data-list__heading">{renderSortableHeading('overdueCheckouts', t.users.overdueCheckoutsLabel)}</span>
+              <span className="data-list__heading">{renderSortableHeading('totalCheckouts', t.users.totalCheckoutsLabel)}</span>
+              <span className="data-list__heading">{renderSortableHeading('closedCheckouts', t.users.closedCheckoutsLabel)}</span>
             </div>
 
             {filteredUsers.map((candidate) => (
@@ -228,6 +295,11 @@ function UsersPage() {
                     </Link>
                     <span className="data-list__context-value">{candidate.email}</span>
                   </div>
+                </div>
+
+                <div className="data-list__cell">
+                  <span className="data-list__mobile-label">{t.profile.roleLabel}</span>
+                  <span className="data-list__value">{getRoleLabel(candidate.role, language)}</span>
                 </div>
 
                 <div className="data-list__cell">

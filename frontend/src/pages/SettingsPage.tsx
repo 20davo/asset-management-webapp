@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
+import { useAppearance } from '../context/AppearanceContext'
 import { useLanguage } from '../context/LanguageContext'
 
 function SettingsPage() {
   const { language, setLanguage, t } = useLanguage()
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
+  const { appearance, setAppearance } = useAppearance()
   const [languagePulse, setLanguagePulse] = useState(false)
   const [themePulse, setThemePulse] = useState(false)
   const currentLanguageLabel = language === 'hu' ? 'Magyar / HU' : 'English / EN'
-  const currentThemeLabel = themeMode === 'light' ? t.nav.lightMode : t.nav.darkMode
+  const currentThemeLabel = appearance === 'light' ? t.nav.lightMode : t.nav.darkMode
 
   useEffect(() => {
     if (!languagePulse) {
@@ -134,17 +135,17 @@ function SettingsPage() {
               <div
                 className={`language-switcher settings-switcher ${
                   themePulse ? 'settings-switcher--pulse' : ''
-                } ${themeMode === 'light' ? 'settings-switcher--left' : 'settings-switcher--right'}`}
+                } ${appearance === 'light' ? 'settings-switcher--left' : 'settings-switcher--right'}`}
                 aria-label={t.nav.theme}
               >
                 <button
                   type="button"
                   className={`language-switcher__button ${
-                    themeMode === 'light' ? 'language-switcher__button--active' : ''
+                    appearance === 'light' ? 'language-switcher__button--active' : ''
                   }`}
                   onClick={() => {
-                    if (themeMode !== 'light') {
-                      setThemeMode('light')
+                    if (appearance !== 'light') {
+                      setAppearance('light')
                       setThemePulse(true)
                     }
                   }}
@@ -154,11 +155,11 @@ function SettingsPage() {
                 <button
                   type="button"
                   className={`language-switcher__button ${
-                    themeMode === 'dark' ? 'language-switcher__button--active' : ''
+                    appearance === 'dark' ? 'language-switcher__button--active' : ''
                   }`}
                   onClick={() => {
-                    if (themeMode !== 'dark') {
-                      setThemeMode('dark')
+                    if (appearance !== 'dark') {
+                      setAppearance('dark')
                       setThemePulse(true)
                     }
                   }}

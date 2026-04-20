@@ -27,3 +27,13 @@ export interface LoginResponse {
 export interface RegisterResponse {
   message: string
 }
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+  confirmNewPassword: string
+}
+
+export interface MessageResponse {
+  message: string
+}

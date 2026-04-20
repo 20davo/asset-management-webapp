@@ -6,6 +6,7 @@ using AssetManagement.Api.Constants;
 using AssetManagement.Api.Data;
 using AssetManagement.Api.Dtos;
 using AssetManagement.Api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -141,6 +142,46 @@ namespace AssetManagement.Api.Controllers
                     user.Role
                 }
             });
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(candidate => candidate.Id == userId);
+
+            if (user == null)
+            {
+                return Unauthorized(new { message = "A felhasználó nem található." });
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+            {
+                return BadRequest(new { message = "A jelenlegi jelszó hibás." });
+            }
+
+            if (dto.NewPassword != dto.ConfirmNewPassword)
+            {
+                return BadRequest(new { message = "Az új jelszavak nem egyeznek." });
+            }
+
+            if (dto.CurrentPassword == dto.NewPassword)
+            {
+                return BadRequest(new { message = "Az új jelszó nem lehet ugyanaz, mint a jelenlegi." });
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "A jelszó sikeresen frissítve." });
         }
     }
 }

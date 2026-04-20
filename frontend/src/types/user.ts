@@ -6,3 +6,9 @@ export interface ManagedUser {
   email: string
   role: UserRole
 }
+
+export interface UpdateManagedUserRequest {
+  name: string
+  email: string
+  role: UserRole
+}

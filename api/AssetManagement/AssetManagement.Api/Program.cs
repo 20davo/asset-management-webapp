@@ -64,6 +64,30 @@ namespace AssetManagement.Api
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
                     ClockSkew = TimeSpan.Zero
                 };
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                        var roleClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+                        if (!int.TryParse(userIdClaim, out var userId) || string.IsNullOrWhiteSpace(roleClaim))
+                        {
+                            context.Fail("Invalid token claims.");
+                            return;
+                        }
+
+                        var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                        var user = await dbContext.Users
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(candidate => candidate.Id == userId);
+
+                        if (user == null || user.Role != roleClaim)
+                        {
+                            context.Fail("The token no longer matches the current user role.");
+                        }
+                    }
+                };
             });
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
