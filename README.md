@@ -15,8 +15,12 @@ Current core capabilities:
 - admin pages for users, user details, and checkout activity
 - admin-only equipment creation, editing, deletion, and maintenance actions
 - admin assignment flow that assigns assets to regular users
+- admin user management for profile data, roles, and account removal
+- password change flow for signed-in users
 - protected equipment image uploads
 - profile and settings pages for the signed-in user
+- light and dark appearance settings with persisted preference
+- shareable list filters, warning filters, and sortable table headers
 - Docker-based local development and production-like demo workflows
 
 The app is currently closer to an internal equipment and assignment tracker than to a full enterprise asset lifecycle platform.
@@ -165,6 +169,7 @@ Current signed-in navigation:
 - all signed-in users can access `Inventory`, `My Items`, `Profile`, and `Settings`
 - admins can also access `Users` and `Checkout Log`
 - the profile menu contains `Profile`, `Settings`, and `Logout`
+- signed-in users can change their own password from the profile area
 
 ### Registration behavior
 
@@ -190,7 +195,7 @@ Regular users currently work mainly in these views:
 - `Inventory`: browse company equipment and open asset details
 - `My Items`: see currently assigned assets, due dates, and closed history
 - `Profile`: review signed-in account details
-- `Settings`: change language and preview the appearance toggle
+- `Settings`: change language and appearance preferences
 
 Regular users can:
 
@@ -198,6 +203,7 @@ Regular users can:
 - check out available equipment for themselves
 - return their own open items
 - review their own closed history
+- change their own password
 
 ### Admin flow
 
@@ -205,11 +211,15 @@ Admins have everything regular users have, plus:
 
 - `Users`: list regular users and open user detail pages
 - `User details`: see a selected user's current assets and closed history
+- user profile editing for display name, email, and role
+- user deletion with related assignment history cleanup
 - `Checkout Log`: review active assignments and closed returns
 - inventory create/edit/delete and maintenance actions
 - asset assignment to regular users
 
 Admins do not check out assets for themselves through the admin assignment flow. Instead, they assign available assets to regular users.
+
+Admin role changes are checked against the current database state, so removed admin access takes effect without waiting for the old JWT to expire.
 
 ## Main pages
 
@@ -221,6 +231,7 @@ Admins do not check out assets for themselves through the admin assignment flow.
 - `/all-checkouts`: admin checkout log
 - `/profile`: signed-in user profile
 - `/settings`: signed-in user settings
+- `/change-password`: signed-in user password change
 
 Legacy redirects still exist for:
 
@@ -238,9 +249,9 @@ Current behavior:
 - protected image loading uses the logged-in user token
 - unauthorized image requests follow the same session-expired flow as the rest of the app
 
-## Frontend state in URLs
+## List state and sorting
 
-The main list pages now keep their search and view state in query parameters.
+The main list pages keep search, filters, warning filters, view mode, and table sorting in query parameters.
 
 This currently applies to:
 
@@ -252,9 +263,11 @@ This currently applies to:
 
 Examples:
 
-- `/all-checkouts?state=overdue&view=list`
-- `/users?search=anna&sort=activity`
-- `/my-items?current-view=cards`
+- `/all-checkouts?state=active&warning=overdue&view=list`
+- `/users?search=anna&role=User&sort=name&dir=asc`
+- `/my-items?current-view=cards&current-warning=dueSoon`
+
+In list view, sorting is handled from the table headers instead of a separate sort dropdown. Columns with actions are obviously not sortable.
 
 ## Persistence
 
@@ -302,6 +315,7 @@ docker compose down -v
 - a local bootstrap admin can be enabled from the root `.env` for development only
 - the frontend forms use explicit `autocomplete` values for better browser and password manager behavior
 - the default UI language fallback is English
+- language and appearance preferences are stored locally in the browser
 - the production-like stack is meant as a realistic demo path, not as a final production deployment
 
 ## Current limitations
@@ -311,12 +325,11 @@ The project is in a strong demo-ready state, but a few production-level decision
 - JWT is still stored in `localStorage`
 - forwarded headers currently trust all proxies when the feature is enabled
 - login rate limiting is currently IP-based
-- the light/dark appearance switch in settings is still a UI placeholder
 - the production-like Docker path is closer to deployment, but it is not yet a full final deployment setup with TLS, domain routing, and secret management
 
 ## License
 
 This repository is shared as a public portfolio project.
 
-The code is not open source and is provided for review and evaluation only.
+The code is not open source.
 See [LICENSE](./LICENSE) for details.
