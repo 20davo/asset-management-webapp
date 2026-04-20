@@ -1,10 +1,12 @@
+import type { EquipmentStatus } from './equipment'
+
 export interface CheckoutEquipment {
   id: number
   name: string
   category: string
   imageUrl: string | null
   serialNumber: string
-  status: string
+  status: EquipmentStatus
 }
 
 export interface CheckoutUser {

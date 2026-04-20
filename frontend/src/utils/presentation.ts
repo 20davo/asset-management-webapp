@@ -1,11 +1,12 @@
 ﻿import type { Language } from '../context/LanguageContext'
 import type { UserRole } from '../types/auth'
+import type { EquipmentStatus } from '../types/equipment'
 
 function getLocale(language: Language) {
   return language === 'en' ? 'en-US' : 'hu-HU'
 }
 
-export function getStatusBadgeClass(status: string) {
+export function getStatusBadgeClass(status: EquipmentStatus | string) {
   switch (status) {
     case 'Available':
       return 'status-badge status-badge--available'
@@ -18,7 +19,7 @@ export function getStatusBadgeClass(status: string) {
   }
 }
 
-export function getStatusLabel(status: string, language: Language = 'hu') {
+export function getStatusLabel(status: EquipmentStatus | string, language: Language = 'hu') {
   const labels = {
     hu: {
       Available: 'Elérhető',

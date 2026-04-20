@@ -1,3 +1,5 @@
+export type EquipmentStatus = 'Available' | 'CheckedOut' | 'Maintenance'
+
 export interface EquipmentListItem {
   id: number
   name: string
@@ -5,7 +7,7 @@ export interface EquipmentListItem {
   description: string | null
   imageUrl: string | null
   serialNumber: string
-  status: string
+  status: EquipmentStatus
   createdAt: string
   activeCheckoutUserName: string | null
   activeCheckoutDueAt: string | null
@@ -30,7 +32,7 @@ export interface EquipmentDetails {
   description: string | null
   imageUrl: string | null
   serialNumber: string
-  status: string
+  status: EquipmentStatus
   createdAt: string
   totalCheckoutCount: number
   lastCheckedOutAt: string | null
