@@ -37,6 +37,9 @@ frontend/*.njsproj
 frontend/*.sln
 frontend/*.sw?
 
+# VS Code
+.vscode
+
 # dotenv files
 .env
 
