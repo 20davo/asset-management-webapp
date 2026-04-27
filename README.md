@@ -44,7 +44,7 @@ Main concepts in the current UI:
 
 A 6-minute demo video is available here: [Watch the demo](https://youtu.be/dxP30sKYmxA).
 
-The screenshots below focus on the main admin flows.
+The screenshots below show the main app screens and admin-facing flows.
 
 ### Login
 
@@ -65,6 +65,24 @@ The screenshots below focus on the main admin flows.
 ### Account Settings
 
 ![Account settings page](./docs/screenshots/account.png)
+
+## Quick start
+
+Create a root `.env` file from the example, then start the local development stack:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+Then try the app in your browser at `http://localhost:5173`.
+
+The example `.env` enables a local bootstrap admin so the demo is usable right away:
+
+- email: `admin@assetmanagement.local`
+- password: `Admin123!`
+
+Use this admin account to add the first assets. Public registration creates regular user accounts only.
 
 ## Tech stack
 
@@ -354,7 +372,7 @@ The main list pages keep search, filters, warning filters, view mode, and table 
 This currently applies to:
 
 - inventory
-- checkout log
+- assignment log
 - users
 - my items
 - user details
@@ -381,6 +399,7 @@ This means the following survive container recreation:
 - uploaded files
 - ASP.NET protection keys
 
+<!--
 ## Daily Docker commands
 
 Show running services:
@@ -406,6 +425,7 @@ Stop containers and remove named volumes too:
 ```powershell
 docker compose down -v
 ```
+-->
 
 ## Development notes
 
