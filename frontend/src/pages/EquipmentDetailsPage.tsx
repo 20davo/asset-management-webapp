@@ -231,6 +231,8 @@ function EquipmentDetailsPage() {
   const canReturnNow = equipment.canReturn
   const latestCheckoutEntry = equipment.checkouts[0]
   const activeCheckoutEntry = equipment.checkouts.find((checkout) => !checkout.returnedAt)
+  const hasActiveAssignment =
+    !!activeCheckoutEntry || equipment.status === 'CheckedOut' || !!equipment.activeCheckoutUserName
   const activeCheckoutUserName =
     activeCheckoutEntry?.userName ?? equipment.activeCheckoutUserName ?? null
   const activeCheckoutDueAt =
@@ -448,6 +450,7 @@ function EquipmentDetailsPage() {
           activeCheckoutEntry={activeCheckoutEntry}
           activeCheckoutOverdue={activeCheckoutOverdue}
           activeCheckoutUserName={activeCheckoutUserName}
+          hasActiveAssignment={hasActiveAssignment}
           canCheckoutNow={canCheckoutNow}
           canReturnNow={canReturnNow}
           canSeeActiveCheckoutDetails={canSeeActiveCheckoutDetails}

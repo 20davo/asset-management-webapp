@@ -9,6 +9,7 @@ interface EquipmentDetailsSummaryProps {
   activeCheckoutEntry: CheckoutHistoryItem | undefined
   activeCheckoutOverdue: boolean
   activeCheckoutUserName: string | null
+  hasActiveAssignment: boolean
   canCheckoutNow: boolean
   canReturnNow: boolean
   canSeeActiveCheckoutDetails: boolean
@@ -23,6 +24,7 @@ export function EquipmentDetailsSummary({
   activeCheckoutEntry,
   activeCheckoutOverdue,
   activeCheckoutUserName,
+  hasActiveAssignment,
   canCheckoutNow,
   canReturnNow,
   canSeeActiveCheckoutDetails,
@@ -67,7 +69,11 @@ export function EquipmentDetailsSummary({
           <div className="info-stack__item">
             <span className="info-stack__label">{t.details.returnability}</span>
             <strong>
-              {canReturnNow ? t.details.returnabilityYes : t.details.returnabilityNo}
+              {canReturnNow
+                ? t.details.returnabilityYes
+                : hasActiveAssignment
+                  ? t.details.returnabilityRestricted
+                  : t.details.returnabilityNo}
             </strong>
           </div>
           <div className="info-stack__item">

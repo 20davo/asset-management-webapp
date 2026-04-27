@@ -63,11 +63,11 @@ function SettingsPage() {
       <section className="section-card settings-workspace">
         <div className="section-heading section-heading--toolbar">
           <div>
-            <span className="section-heading__eyebrow">{t.settings.heroKicker}</span>
-            <h2 className="section-heading__title">{t.settings.heroTitle}</h2>
+            <span className="section-heading__eyebrow">{t.settings.workspaceKicker}</span>
+            <h2 className="section-heading__title">{t.settings.workspaceTitle}</h2>
           </div>
           <div className="section-heading__aside">
-            <p className="section-heading__text">{t.settings.heroText}</p>
+            <p className="section-heading__text">{t.settings.workspaceText}</p>
           </div>
         </div>
 
