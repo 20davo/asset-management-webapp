@@ -1,48 +1,46 @@
 # Asset Management Web App
 
-A full-stack web app for managing company equipment, from availability and assignments to maintenance records. Built with React, ASP.NET Core, and PostgreSQL.
+This application helps companies keep better control over their equipment by making each asset easier to track throughout its everyday lifecycle. It is built with React, ASP.NET Core Web API, and PostgreSQL.
 
 ## Project overview
 
-This project is a portfolio demo for a small internal asset management system. The goal is to show a realistic full-stack workflow with authentication, role-based access, equipment management, and asset assignment history.
+At its core, the project follows the structure of a focused internal asset management system. It brings together authentication, role-based access, equipment management, asset statuses, and assignment workflows in a way that reflects how a real internal tool could work. In this portfolio version, the focus is on showing these full-stack features through practical CRUD operations and clear user-admin responsibilities.
 
-Current core capabilities:
+### Core capabilities
 
-**Inventory and assignment tracking**
+**Equipment management**
 
-- inventory overview for company equipment
-- asset details with assignment actions and history
-- user-facing `My Items` flow for assigned and returned assets
+- inventory overview for company assets
+- asset details with status, assignment actions, and history
 - protected equipment image uploads
-- shareable list filters, warning filters, and sortable table headers
+- shareable filters, warning filters, and sortable table headers
 
-**Admin workflow**
+**Assignment workflow**
 
-- admin pages for users, user details, and asset assignment activity
+- user-facing `My Items` page for assigned and returned assets
+- asset checkout and return flow for regular users
+- assignment history with active and returned records
+- due-date based tracking for assigned assets
+
+**Admin control**
+
+- admin pages for users, user details, and assignment activity
 - admin-only equipment creation, editing, deletion, and maintenance actions
-- admin assignment flow that assigns assets to regular users
-- admin user management for profile data, roles, and account removal
+- admin assignment flow for assigning assets to regular users
+- user management for profile data, roles, and account removal
 
-**Account and demo setup**
+**Access and user experience**
 
-- user login with JWT-based authentication
+- JWT-based login for protected application pages
+- role-based access for regular users and admins
 - password change flow for signed-in users
-- profile and settings pages for signed-in users
-- light and dark appearance settings with persisted preference
-- Docker-based local development and production-like demo workflows
+- profile page and persisted light/dark appearance settings
 
-The app is designed as a focused internal equipment and assignment tracker, not as a large enterprise asset platform.
-
-Main concepts in the current UI:
-
-- `Inventory`: all company equipment
-- `My Items`: the signed-in user's assigned and returned assets
-- `Users`: admin view of regular users and their assigned assets
-- `Assignment Log`: admin history of active and returned asset assignments
+> **Note:** This project is currently designed as a focused internal equipment and assignment tracker, but it can be expanded into a broader asset management system in the future.
 
 ## Demo
 
-A 6-minute demo video is available here: [Watch the demo](https://youtu.be/dxP30sKYmxA).
+A 6-minute walkthrough of the main application workflows is available here: [Watch the demo](https://youtu.be/dxP30sKYmxA).
 
 The screenshots below show the main app screens and admin-facing flows.
 
@@ -86,11 +84,13 @@ Use this admin account to add the first assets. Public registration creates regu
 
 ## Tech stack
 
-- frontend: React, TypeScript, Vite
-- backend: ASP.NET Core 8, Entity Framework Core
-- database: PostgreSQL
-- containers: Docker Compose
-- production-like frontend hosting: Nginx
+| Area | Technologies |
+| --- | --- |
+| Frontend | React, TypeScript, Vite |
+| Backend API | ASP.NET Core 8 Web API, Entity Framework Core |
+| Database | PostgreSQL |
+| Containers | Docker Compose |
+| Production-like hosting | Nginx for serving the built frontend |
 
 ## Backend API
 
@@ -282,8 +282,8 @@ Current behavior:
 
 Current signed-in navigation:
 
-- all signed-in users can access `Inventory`, `My Items`, `Profile`, and `Settings`
-- admins can also access `Users` and `Assignment Log`
+- regular users can access `Inventory`, `My Items`, `Profile`, and `Settings`
+- admins can access `Inventory`, `Users`, `Assignment Log`, `Profile`, and `Settings`
 - the profile menu contains `Profile`, `Settings`, and `Logout`
 - signed-in users can change their own password from the profile area
 
@@ -347,7 +347,7 @@ Admin role changes are checked against the current database state. This means re
 - `/all-checkouts`: admin assignment log
 - `/profile`: signed-in user profile
 - `/settings`: signed-in user settings
-- `/change-password`: signed-in user password change
+- `/profile/security`: signed-in user password change
 
 Legacy redirects still exist for:
 
@@ -427,7 +427,7 @@ docker compose down -v
 ```
 -->
 
-## Development notes
+## Implementation notes
 
 - the backend applies EF Core migrations automatically on startup
 - a local bootstrap admin can be enabled from the root `.env` for development only
