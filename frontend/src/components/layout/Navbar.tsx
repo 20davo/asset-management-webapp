@@ -11,7 +11,6 @@ function Navbar() {
   const [isUserMenuPinned, setIsUserMenuPinned] = useState(false)
   const [isUserMenuHovered, setIsUserMenuHovered] = useState(false)
   const [isUserMenuHoverSuppressed, setIsUserMenuHoverSuppressed] = useState(false)
-  const [shouldRenderUserMenu, setShouldRenderUserMenu] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
   const isUserMenuOpen =
     isUserMenuPinned || (isUserMenuHovered && !isUserMenuHoverSuppressed)
@@ -43,32 +42,6 @@ function Navbar() {
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isUserMenuPinned])
-
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-    if (isUserMenuOpen) {
-      setShouldRenderUserMenu(true)
-      return
-    }
-
-    timeoutId = setTimeout(() => {
-      setShouldRenderUserMenu(false)
-    }, 180)
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
-    }
-  }, [isUserMenuOpen])
-
-  useEffect(() => {
-    setIsUserMenuPinned(false)
-    setIsUserMenuHovered(false)
-    setIsUserMenuHoverSuppressed(false)
-    setShouldRenderUserMenu(false)
-  }, [isAuthenticated, user?.role])
 
   return (
     <header className="navbar-wrap">
@@ -202,11 +175,9 @@ function Navbar() {
                   </div>
                 </button>
 
-                {shouldRenderUserMenu && (
+                {isUserMenuOpen && (
                   <div
-                    className={`navbar__dropdown ${
-                      isUserMenuOpen ? 'navbar__dropdown--open' : 'navbar__dropdown--closing'
-                    }`}
+                    className="navbar__dropdown navbar__dropdown--open"
                     role="menu"
                   >
                     <div className="navbar__dropdown-header">

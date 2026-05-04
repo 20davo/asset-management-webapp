@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import type { ManagedUser } from '../types/user'
+import { getApiErrorMessage } from '../utils/apiErrors'
 import { getRoleLabel, isCheckoutOverdue } from '../utils/presentation'
 import {
   getEnumSearchParam,
@@ -62,9 +63,8 @@ function UsersPage() {
         )
 
         setUsers(userCards)
-      } catch (error: any) {
-        const apiMessage = error?.response?.data?.message || t.users.loadError
-        setErrorMessage(apiMessage)
+      } catch (error: unknown) {
+        setErrorMessage(getApiErrorMessage(error, t.users.loadError))
       } finally {
         setIsLoading(false)
       }

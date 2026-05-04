@@ -28,24 +28,23 @@ export function ProtectedAssetImage({
   placeholderClassName,
   placeholderText,
 }: ProtectedAssetImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
+  const directSrc =
+    imageUrl && isDirectImageSource(imageUrl) ? imageUrl : null
+  const [protectedImage, setProtectedImage] = useState<{
+    imageUrl: string
+    resolvedSrc: string | null
+  } | null>(null)
 
   useEffect(() => {
-    if (!imageUrl) {
-      setResolvedSrc(null)
+    if (!imageUrl || directSrc) {
       return
     }
 
-    if (isDirectImageSource(imageUrl)) {
-      setResolvedSrc(imageUrl)
-      return
-    }
-
+    const requestedImageUrl = imageUrl
     const token = getToken()
-    const targetUrl = resolveAssetImageUrl(imageUrl)
+    const targetUrl = resolveAssetImageUrl(requestedImageUrl)
 
     if (!token || !targetUrl) {
-      setResolvedSrc(null)
       return
     }
 
@@ -67,14 +66,20 @@ export function ProtectedAssetImage({
         }
 
         objectUrl = URL.createObjectURL(response.data)
-        setResolvedSrc(objectUrl)
+        setProtectedImage({
+          imageUrl: requestedImageUrl,
+          resolvedSrc: objectUrl,
+        })
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           handleUnauthorizedResponse(requestUrl)
         }
 
         if (!isCancelled) {
-          setResolvedSrc(null)
+          setProtectedImage({
+            imageUrl: requestedImageUrl,
+            resolvedSrc: null,
+          })
         }
       }
     }
@@ -88,7 +93,10 @@ export function ProtectedAssetImage({
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [imageUrl])
+  }, [directSrc, imageUrl])
+
+  const resolvedSrc =
+    directSrc ?? (protectedImage && protectedImage.imageUrl === imageUrl ? protectedImage.resolvedSrc : null)
 
   if (!resolvedSrc) {
     return (

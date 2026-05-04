@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { REGISTRATION_ENABLED } from '../config/runtime'
 import { useLanguage } from '../context/LanguageContext'
+import { getApiErrorMessage } from '../utils/apiErrors'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -53,8 +54,8 @@ function LoginPage() {
     try {
       await login(formData)
       navigate('/')
-    } catch (error: any) {
-      setErrorMessage(error?.response?.data?.message || t.auth.loginError)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.auth.loginError))
     } finally {
       setIsSubmitting(false)
     }

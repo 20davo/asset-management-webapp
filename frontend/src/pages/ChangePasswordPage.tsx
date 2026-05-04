@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { changePassword } from '../api/authApi'
 import { useLanguage } from '../context/LanguageContext'
+import { getApiErrorMessage } from '../utils/apiErrors'
 
 function ChangePasswordPage() {
   const { t } = useLanguage()
@@ -34,9 +35,8 @@ function ChangePasswordPage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.profile.passwordChangeError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.profile.passwordChangeError))
       setSuccessMessage('')
     } finally {
       setIsSubmitting(false)

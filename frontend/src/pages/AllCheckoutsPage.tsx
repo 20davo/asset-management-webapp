@@ -13,6 +13,7 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
+import { getApiErrorMessage } from '../utils/apiErrors'
 import {
   getEnumSearchParam,
   getTextSearchParam,
@@ -109,9 +110,8 @@ function AllCheckoutsPage() {
         setErrorMessage('')
         const data = await getAllCheckouts()
         setCheckouts(data)
-      } catch (error: any) {
-        const apiMessage = error?.response?.data?.message || t.checkouts.loadError
-        setErrorMessage(apiMessage)
+      } catch (error: unknown) {
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError))
       } finally {
         setIsLoading(false)
       }

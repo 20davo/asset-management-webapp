@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   createEquipment,
@@ -16,6 +16,7 @@ import {
   isCheckoutDueSoon,
   isCheckoutOverdue,
 } from '../utils/presentation'
+import { getApiErrorMessage } from '../utils/apiErrors'
 import {
   getEnumSearchParam,
   getTextSearchParam,
@@ -103,22 +104,21 @@ function EquipmentListPage() {
   )
   const sortDirection = getEnumSearchParam(searchParams, 'dir', ['asc', 'desc'] as const, 'asc')
 
-  async function loadEquipments() {
+  const loadEquipments = useCallback(async () => {
     try {
       setErrorMessage('')
       const data = await getEquipments()
       setEquipments(data)
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.inventory.loadError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.loadError))
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [t.inventory.loadError])
 
   useEffect(() => {
-    loadEquipments()
-  }, [])
+    void loadEquipments()
+  }, [loadEquipments])
 
   function clearMessages() {
     setErrorMessage('')
@@ -276,9 +276,8 @@ function EquipmentListPage() {
       setCreateForm(emptyEquipmentForm)
       setIsCreatePanelOpen(false)
       await loadEquipments()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.inventory.createError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.createError))
     } finally {
       setIsCreating(false)
     }
@@ -306,9 +305,8 @@ function EquipmentListPage() {
       setEditingEquipmentId(null)
       setEditForm(emptyEquipmentForm)
       await loadEquipments()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.inventory.updateError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.updateError))
     } finally {
       setIsUpdating(false)
     }
@@ -333,9 +331,8 @@ function EquipmentListPage() {
       }
 
       await loadEquipments()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.inventory.deleteError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.deleteError))
     } finally {
       setDeletingEquipmentId(null)
     }
@@ -349,10 +346,8 @@ function EquipmentListPage() {
       await markEquipmentMaintenance(equipmentId)
       setSuccessMessage(t.inventory.maintenanceSuccess)
       await loadEquipments()
-    } catch (error: any) {
-      const apiMessage =
-        error?.response?.data?.message || t.inventory.maintenanceError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.maintenanceError))
     } finally {
       setStatusChangingEquipmentId(null)
     }
@@ -366,9 +361,8 @@ function EquipmentListPage() {
       await markEquipmentAvailable(equipmentId)
       setSuccessMessage(t.inventory.availableSuccess)
       await loadEquipments()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.inventory.availableError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.inventory.availableError))
     } finally {
       setStatusChangingEquipmentId(null)
     }
@@ -408,7 +402,7 @@ function EquipmentListPage() {
       ).sort((left, right) => left.localeCompare(right, language)),
     [equipments, language],
   )
-  const filteredEquipments = useMemo(() => {
+  const filteredEquipments = (() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     const result = equipments.filter((equipment) => {
@@ -474,16 +468,7 @@ function EquipmentListPage() {
     })
 
     return result
-  }, [
-    categoryFilter,
-    equipments,
-    language,
-    searchQuery,
-    sortDirection,
-    sortField,
-    statusFilter,
-    warningFilter,
-  ])
+  })()
 
   function resetFilters() {
     setMergedSearchParams(setSearchParams, {

@@ -6,6 +6,7 @@ import { CheckoutCollectionView } from '../components/shared/CheckoutCollectionV
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
+import { getApiErrorMessage } from '../utils/apiErrors'
 import { isCheckoutOverdue } from '../utils/presentation'
 
 function MyItemsPage() {
@@ -21,9 +22,8 @@ function MyItemsPage() {
         setErrorMessage('')
         const data = await getMyCheckouts()
         setCheckouts(data)
-      } catch (error: any) {
-        const apiMessage = error?.response?.data?.message || t.checkouts.loadError
-        setErrorMessage(apiMessage)
+      } catch (error: unknown) {
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError))
       } finally {
         setIsLoading(false)
       }

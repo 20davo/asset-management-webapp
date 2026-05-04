@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import type { ManagedUser } from '../types/user'
+import { getApiErrorMessage } from '../utils/apiErrors'
 import { getRoleLabel, isCheckoutOverdue } from '../utils/presentation'
 
 interface UserFormState {
@@ -57,9 +58,8 @@ function UserDetailsPage() {
           role: targetUser.role,
         })
         setCheckouts(userCheckouts)
-      } catch (error: any) {
-        const apiMessage = error?.response?.data?.message || t.checkouts.userLoadError
-        setErrorMessage(apiMessage)
+      } catch (error: unknown) {
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.userLoadError))
       } finally {
         setIsLoading(false)
       }
@@ -113,9 +113,8 @@ function UserDetailsPage() {
       }
 
       setSuccessMessage(t.users.updateSuccess)
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.users.updateError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.users.updateError))
       setSuccessMessage('')
     } finally {
       setIsSaving(false)
@@ -138,9 +137,8 @@ function UserDetailsPage() {
       setErrorMessage('')
       await deleteUser(selectedUser.id)
       navigate('/users', { replace: true })
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.users.deleteError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.users.deleteError))
     } finally {
       setIsDeleting(false)
     }

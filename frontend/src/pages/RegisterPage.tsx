@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api/authApi'
 import { useLanguage } from '../context/LanguageContext'
+import { getApiErrorMessage } from '../utils/apiErrors'
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -54,12 +55,8 @@ function RegisterPage() {
       setTimeout(() => {
         navigate('/login')
       }, 1000)
-    } catch (error: any) {
-      setErrorMessage(
-        error?.response?.data?.message ||
-          Object.values(error?.response?.data?.errors ?? {}).flat()[0] ||
-          t.auth.registerError,
-      )
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.auth.registerError))
     } finally {
       setIsSubmitting(false)
     }

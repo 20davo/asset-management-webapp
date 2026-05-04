@@ -91,6 +91,7 @@ Use this admin account to add the first assets. Public registration creates regu
 | Database | PostgreSQL |
 | Containers | Docker Compose |
 | Production-like hosting | Nginx for serving the built frontend |
+| Testing and CI | xUnit backend tests, GitHub Actions |
 
 ## Backend API
 
@@ -435,7 +436,8 @@ docker compose down -v
 - the default UI language fallback is English
 - language and appearance preferences are stored locally in the browser
 - the production-like stack is meant as a realistic demo path, not as a final production deployment
-- automated tests and CI are planned next steps
+- GitHub Actions runs backend build/tests and frontend lint/build checks
+- the first backend xUnit tests cover selected auth, equipment, and user-management rules
 
 ## Current limitations
 
@@ -451,7 +453,7 @@ The project is in a strong demo-ready state, but a few production-level decision
 | Uploaded files are stored on a Docker volume. | Store uploads in object storage and add virus scanning and backups. |
 | Secrets are configured through local environment variables. | Use a secret manager or GitHub Actions secrets for deployed environments. |
 | The production-like Docker setup does not include HTTPS or a real domain. | Add HTTPS, domain routing, and certificate renewal in the hosting setup. |
-| There are no automated tests yet. | Add backend unit/integration tests, frontend tests, and a GitHub Actions pipeline. |
+| Automated testing currently starts with a focused backend xUnit test set. | Add broader backend integration tests, frontend tests, and end-to-end workflow coverage. |
 | There is no monitoring setup yet. | Add structured logs, health checks, metrics, and error tracking. |
 
 ## License

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   checkoutEquipment,
@@ -21,6 +21,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { EquipmentCheckoutHistory } from '../components/equipment/EquipmentCheckoutHistory'
 import { EquipmentDetailsShowcase } from '../components/equipment/EquipmentDetailsShowcase'
 import { EquipmentDetailsSummary } from '../components/equipment/EquipmentDetailsSummary'
+import { getApiErrorMessage } from '../utils/apiErrors'
 
 function formatDateTimeLocal(date: Date) {
   const year = date.getFullYear()
@@ -56,7 +57,7 @@ function EquipmentDetailsPage() {
 
   const [returnNote, setReturnNote] = useState('')
 
-  async function loadEquipmentDetails() {
+  const loadEquipmentDetails = useCallback(async () => {
     if (!id) {
       setErrorMessage(t.details.missingId)
       setIsLoading(false)
@@ -67,17 +68,16 @@ function EquipmentDetailsPage() {
       setErrorMessage('')
       const data = await getEquipmentById(Number(id))
       setEquipment(data)
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.details.loadError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.details.loadError))
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [id, t.details.loadError, t.details.missingId])
 
   useEffect(() => {
-    loadEquipmentDetails()
-  }, [id])
+    void loadEquipmentDetails()
+  }, [loadEquipmentDetails])
 
   useEffect(() => {
     if (!isAdminUser) {
@@ -136,9 +136,8 @@ function EquipmentDetailsPage() {
       })
 
       await loadEquipmentDetails()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.details.checkoutError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.details.checkoutError))
     } finally {
       setIsSubmitting(false)
     }
@@ -164,9 +163,8 @@ function EquipmentDetailsPage() {
       setReturnNote('')
 
       await loadEquipmentDetails()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.details.returnError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.details.returnError))
     } finally {
       setIsSubmitting(false)
     }
@@ -185,10 +183,8 @@ function EquipmentDetailsPage() {
       await markEquipmentMaintenance(Number(id))
       setSuccessMessage(t.details.maintenanceSuccess)
       await loadEquipmentDetails()
-    } catch (error: any) {
-      const apiMessage =
-        error?.response?.data?.message || t.details.maintenanceError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.details.maintenanceError))
     } finally {
       setIsStatusSubmitting(false)
     }
@@ -207,9 +203,8 @@ function EquipmentDetailsPage() {
       await markEquipmentAvailable(Number(id))
       setSuccessMessage(t.details.availableSuccess)
       await loadEquipmentDetails()
-    } catch (error: any) {
-      const apiMessage = error?.response?.data?.message || t.details.availableError
-      setErrorMessage(apiMessage)
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error, t.details.availableError))
     } finally {
       setIsStatusSubmitting(false)
     }
