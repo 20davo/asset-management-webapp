@@ -49,7 +49,8 @@ namespace AssetManagement.Api.Controllers
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new
                 {
-                    message = "Az új felhasználói regisztráció ebben a környezetben le van tiltva."
+                    code = "auth.registrationDisabled",
+                    message = "New user registration is disabled in this environment."
                 });
             }
 
@@ -58,7 +59,7 @@ namespace AssetManagement.Api.Controllers
 
             if (!IsValidEmail(normalizedEmail))
             {
-                return BadRequest(new { message = "Csak érvényes email címmel lehet regisztrálni." });
+                return BadRequest(new { code = "auth.invalidEmail", message = "Please enter a valid email address." });
             }
 
             var emailExists = await _context.Users
@@ -66,7 +67,7 @@ namespace AssetManagement.Api.Controllers
 
             if (emailExists)
             {
-                return BadRequest(new { message = "Már létezik felhasználó ezzel az email címmel." });
+                return BadRequest(new { code = "auth.emailAlreadyExists", message = "A user with this email address already exists." });
             }
 
             var user = new User
@@ -82,7 +83,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Sikeres regisztráció."
+                code = "auth.registered",
+                message = "Registration completed successfully."
             });
         }
 
@@ -97,14 +99,14 @@ namespace AssetManagement.Api.Controllers
 
             if (user == null)
             {
-                return Unauthorized(new { message = "Hibás email vagy jelszó." });
+                return Unauthorized(new { code = "auth.invalidCredentials", message = "The email address or password is incorrect." });
             }
 
             var isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
 
             if (!isPasswordValid)
             {
-                return Unauthorized(new { message = "Hibás email vagy jelszó." });
+                return Unauthorized(new { code = "auth.invalidCredentials", message = "The email address or password is incorrect." });
             }
 
             var claims = new List<Claim>
@@ -132,7 +134,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Sikeres bejelentkezés.",
+                code = "auth.loginSuccess",
+                message = "Signed in successfully.",
                 token = jwt,
                 user = new
                 {
@@ -152,36 +155,36 @@ namespace AssetManagement.Api.Controllers
 
             if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(candidate => candidate.Id == userId);
 
             if (user == null)
             {
-                return Unauthorized(new { message = "A felhasználó nem található." });
+                return Unauthorized(new { code = "auth.userNotFound", message = "User not found." });
             }
 
             if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
             {
-                return BadRequest(new { message = "A jelenlegi jelszó hibás." });
+                return BadRequest(new { code = "auth.currentPasswordInvalid", message = "The current password is incorrect." });
             }
 
             if (dto.NewPassword != dto.ConfirmNewPassword)
             {
-                return BadRequest(new { message = "Az új jelszavak nem egyeznek." });
+                return BadRequest(new { code = "auth.passwordsDoNotMatch", message = "The new passwords do not match." });
             }
 
             if (dto.CurrentPassword == dto.NewPassword)
             {
-                return BadRequest(new { message = "Az új jelszó nem lehet ugyanaz, mint a jelenlegi." });
+                return BadRequest(new { code = "auth.passwordUnchanged", message = "The new password cannot be the same as the current password." });
             }
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "A jelszó sikeresen frissítve." });
+            return Ok(new { code = "auth.passwordUpdated", message = "Password updated successfully." });
         }
     }
 }

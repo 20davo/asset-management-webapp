@@ -70,7 +70,7 @@ namespace AssetManagement.Api.Controllers
 
             if (user == null)
             {
-                return NotFound(new { message = "A felhasználó nem található." });
+                return NotFound(new { code = "user.notFound", message = "User not found." });
             }
 
             return Ok(user);
@@ -87,24 +87,24 @@ namespace AssetManagement.Api.Controllers
 
             if (!IsValidEmail(normalizedEmail))
             {
-                return BadRequest(new { message = "Csak érvényes email címmel lehet menteni a felhasználót." });
+                return BadRequest(new { code = "user.invalidEmail", message = "Please enter a valid email address for this user." });
             }
 
             if (normalizedRole != UserRoles.Admin && normalizedRole != UserRoles.User)
             {
-                return BadRequest(new { message = "A megadott szerepkör érvénytelen." });
+                return BadRequest(new { code = "user.invalidRole", message = "The selected role is invalid." });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(candidate => candidate.Id == id);
 
             if (user == null)
             {
-                return NotFound(new { message = "A felhasználó nem található." });
+                return NotFound(new { code = "user.notFound", message = "User not found." });
             }
 
             if (hasCurrentAdminId && currentAdminId == id && user.Role == UserRoles.Admin && normalizedRole != UserRoles.Admin)
             {
-                return BadRequest(new { message = "A saját admin jogosultságodat itt nem veheted el." });
+                return BadRequest(new { code = "user.selfRoleChangeBlocked", message = "You cannot remove your own admin role here." });
             }
 
             var emailExists = await _context.Users
@@ -112,7 +112,7 @@ namespace AssetManagement.Api.Controllers
 
             if (emailExists)
             {
-                return BadRequest(new { message = "Már létezik másik felhasználó ezzel az email címmel." });
+                return BadRequest(new { code = "user.emailAlreadyExists", message = "Another user already uses this email address." });
             }
 
             if (user.Role == UserRoles.Admin && normalizedRole != UserRoles.Admin)
@@ -121,7 +121,7 @@ namespace AssetManagement.Api.Controllers
 
                 if (adminCount <= 1)
                 {
-                    return BadRequest(new { message = "Az utolsó admin jogosultsága nem vehető el." });
+                    return BadRequest(new { code = "user.lastAdminRoleBlocked", message = "The last admin role cannot be removed." });
                 }
             }
 
@@ -148,14 +148,14 @@ namespace AssetManagement.Api.Controllers
 
             if (hasCurrentAdminId && currentAdminId == id)
             {
-                return BadRequest(new { message = "A saját fiókodat itt nem törölheted." });
+                return BadRequest(new { code = "user.selfDeleteBlocked", message = "You cannot delete your own account here." });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(candidate => candidate.Id == id);
 
             if (user == null)
             {
-                return NotFound(new { message = "A felhasználó nem található." });
+                return NotFound(new { code = "user.notFound", message = "User not found." });
             }
 
             if (user.Role == UserRoles.Admin)
@@ -164,7 +164,7 @@ namespace AssetManagement.Api.Controllers
 
                 if (adminCount <= 1)
                 {
-                    return BadRequest(new { message = "Az utolsó admin nem törölhető." });
+                    return BadRequest(new { code = "user.lastAdminDeleteBlocked", message = "The last admin cannot be deleted." });
                 }
             }
 
@@ -213,7 +213,7 @@ namespace AssetManagement.Api.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return Ok(new { message = "A felhasználó és a hozzá tartozó rekordok törölve lettek." });
+            return Ok(new { code = "user.deleted", message = "User and related records deleted." });
         }
     }
 }

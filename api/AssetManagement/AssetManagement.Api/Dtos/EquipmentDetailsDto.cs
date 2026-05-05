@@ -12,6 +12,7 @@
         public DateTime CreatedAt { get; set; }
         public int TotalCheckoutCount { get; set; }
         public DateTime? LastCheckedOutAt { get; set; }
+        public DateTime? LastActivityAt { get; set; }
         public DateTime? ActiveCheckoutDueAt { get; set; }
         public string? ActiveCheckoutUserName { get; set; }
         public bool CanReturn { get; set; }

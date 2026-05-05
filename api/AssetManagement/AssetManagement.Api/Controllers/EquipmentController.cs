@@ -94,25 +94,25 @@ namespace AssetManagement.Api.Controllers
 
             if (image.Length > MaxImageBytes)
             {
-                return BadRequest(new { message = "A kép mérete legfeljebb 2 MB lehet." });
+                return BadRequest(new { code = "equipment.imageTooLarge", message = "The image must be 2 MB or smaller." });
             }
 
             var extension = Path.GetExtension(image.FileName);
 
             if (string.IsNullOrWhiteSpace(extension) || !AllowedImageExtensions.Contains(extension))
             {
-                return BadRequest(new { message = "Csak JPG, PNG vagy WEBP kép tölthető fel." });
+                return BadRequest(new { code = "equipment.imageInvalidType", message = "Only JPG, PNG, or WEBP images can be uploaded." });
             }
 
             if (!string.IsNullOrWhiteSpace(image.ContentType)
                 && !AllowedImageContentTypes.Contains(image.ContentType))
             {
-                return BadRequest(new { message = "A feltöltött fájl nem érvényes képfájl." });
+                return BadRequest(new { code = "equipment.imageInvalidFile", message = "The uploaded file is not a valid image." });
             }
 
             if (!await HasAllowedImageSignatureAsync(image, extension))
             {
-                return BadRequest(new { message = "A feltöltött fájl tartalma nem egyezik egy támogatott képformátummal." });
+                return BadRequest(new { code = "equipment.imageInvalidContent", message = "The uploaded file content does not match a supported image format." });
             }
 
             return null;
@@ -174,7 +174,7 @@ namespace AssetManagement.Api.Controllers
         {
             if (string.IsNullOrWhiteSpace(fileName) || Path.GetFileName(fileName) != fileName)
             {
-                return BadRequest(new { message = "Érvénytelen képfájlnév." });
+                return BadRequest(new { code = "equipment.imageInvalidName", message = "Invalid image file name." });
             }
 
             var filePath = Path.Combine(GetEquipmentUploadDirectory(), fileName);
@@ -243,7 +243,7 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -253,8 +253,12 @@ namespace AssetManagement.Api.Controllers
             var orderedCheckouts = equipment.Checkouts
                 .OrderByDescending(c => c.CheckedOutAt)
                 .ToList();
+            var orderedCheckoutsByActivity = equipment.Checkouts
+                .OrderByDescending(c => c.ReturnedAt ?? c.CheckedOutAt)
+                .ToList();
             var activeCheckout = orderedCheckouts.FirstOrDefault(c => c.ReturnedAt == null);
             var latestCheckout = orderedCheckouts.FirstOrDefault();
+            var latestActivity = orderedCheckoutsByActivity.FirstOrDefault();
             var isCheckedOutByCurrentUser = hasCurrentUserId
                 && activeCheckout?.UserId == currentUserId;
 
@@ -270,13 +274,14 @@ namespace AssetManagement.Api.Controllers
                 CreatedAt = equipment.CreatedAt,
                 TotalCheckoutCount = orderedCheckouts.Count,
                 LastCheckedOutAt = latestCheckout?.CheckedOutAt,
+                LastActivityAt = latestActivity?.ReturnedAt ?? latestActivity?.CheckedOutAt,
                 ActiveCheckoutDueAt = activeCheckout?.DueAt,
                 ActiveCheckoutUserName = activeCheckout?.User?.Name,
                 CanReturn = equipment.Status == EquipmentStatus.CheckedOut
                     && (isAdmin || isCheckedOutByCurrentUser),
                 IsCheckedOutByCurrentUser = isCheckedOutByCurrentUser,
                 Checkouts = isAdmin
-                    ? orderedCheckouts
+                    ? orderedCheckoutsByActivity
                         .Select(c => new CheckoutHistoryItemDto
                         {
                             Id = c.Id,
@@ -318,7 +323,7 @@ namespace AssetManagement.Api.Controllers
 
             if (serialExists)
             {
-                return BadRequest(new { message = "Már létezik eszköz ezzel a gyári számmal." });
+                return BadRequest(new { code = "equipment.serialAlreadyExists", message = "An asset with this serial number already exists." });
             }
 
             var savedImageUrl = await SaveImageAsync(dto.Image);
@@ -339,7 +344,8 @@ namespace AssetManagement.Api.Controllers
 
             return CreatedAtAction(nameof(GetById), new { id = equipment.Id }, new
             {
-                message = "Az eszköz sikeresen létrehozva.",
+                code = "equipment.created",
+                message = "Asset created successfully.",
                 data = equipment
             });
         }
@@ -366,7 +372,7 @@ namespace AssetManagement.Api.Controllers
 
             if (existingEquipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             var serialExists = await _context.Equipments
@@ -374,7 +380,7 @@ namespace AssetManagement.Api.Controllers
 
             if (serialExists)
             {
-                return BadRequest(new { message = "Már létezik másik eszköz ezzel a gyári számmal." });
+                return BadRequest(new { code = "equipment.serialUsedByOtherAsset", message = "Another asset already uses this serial number." });
             }
 
             var previousImageUrl = existingEquipment.ImageUrl;
@@ -404,7 +410,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz sikeresen frissítve.",
+                code = "equipment.updated",
+                message = "Asset updated successfully.",
                 equipmentId = existingEquipment.Id
             });
         }
@@ -417,7 +424,7 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             var hasActiveCheckout = await _context.Checkouts
@@ -425,7 +432,7 @@ namespace AssetManagement.Api.Controllers
 
             if (hasActiveCheckout)
             {
-                return BadRequest(new { message = "Az eszköz nem törölhető, mert jelenleg ki van kérve." });
+                return BadRequest(new { code = "equipment.deleteActiveCheckoutBlocked", message = "This asset cannot be deleted while it is checked out." });
             }
 
             DeleteImageFile(equipment.ImageUrl);
@@ -434,7 +441,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz sikeresen törölve.",
+                code = "equipment.deleted",
+                message = "Asset deleted successfully.",
                 equipmentId = id
             });
         }
@@ -451,14 +459,14 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
             }
 
             var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -466,12 +474,12 @@ namespace AssetManagement.Api.Controllers
 
             if (dto.DueAt <= DateTime.UtcNow)
             {
-                return BadRequest(new { message = "A határidőnek jövőbeli dátumnak kell lennie." });
+                return BadRequest(new { code = "equipment.dueDateMustBeFuture", message = "The due date must be in the future." });
             }
 
             if (equipment.Status != EquipmentStatus.Available)
             {
-                return BadRequest(new { message = "Az eszköz jelenleg nem elérhető kikérésre." });
+                return BadRequest(new { code = "equipment.notAvailableForCheckout", message = "This asset is not currently available for assignment." });
             }
 
             var targetUserId = userId;
@@ -480,12 +488,12 @@ namespace AssetManagement.Api.Controllers
             {
                 if (!dto.AssignedUserId.HasValue)
                 {
-                    return BadRequest(new { message = "Adminként ki kell választanod, melyik felhasználóhoz rendeled az eszközt." });
+                    return BadRequest(new { code = "equipment.adminAssignmentUserRequired", message = "Select the user who should receive this asset." });
                 }
 
                 if (dto.AssignedUserId.Value == userId)
                 {
-                    return BadRequest(new { message = "Az admin nem kérheti ki saját magának az eszközt." });
+                    return BadRequest(new { code = "equipment.adminSelfAssignmentBlocked", message = "Admins cannot assign an asset to themselves." });
                 }
 
                 var assignedUser = await _context.Users
@@ -493,12 +501,12 @@ namespace AssetManagement.Api.Controllers
 
                 if (assignedUser == null)
                 {
-                    return BadRequest(new { message = "A kiválasztott felhasználó nem található." });
+                    return BadRequest(new { code = "equipment.assignedUserNotFound", message = "The selected user was not found." });
                 }
 
                 if (assignedUser.Role != UserRoles.User)
                 {
-                    return BadRequest(new { message = "Az eszköz csak normál felhasználóhoz rendelhető." });
+                    return BadRequest(new { code = "equipment.assignOnlyRegularUser", message = "Assets can only be assigned to regular users." });
                 }
 
                 targetUserId = assignedUser.Id;
@@ -522,9 +530,10 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
+                code = isAdmin ? "equipment.assigned" : "equipment.checkedOut",
                 message = isAdmin
-                    ? "Az eszköz sikeresen felhasználóhoz rendelve."
-                    : "Az eszköz sikeresen kikérve.",
+                    ? "Asset assigned successfully."
+                    : "Asset checked out successfully.",
                 equipmentId = equipment.Id,
                 checkoutId = checkout.Id
             });
@@ -538,7 +547,7 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             var activeCheckout = await _context.Checkouts
@@ -548,7 +557,7 @@ namespace AssetManagement.Api.Controllers
 
             if (activeCheckout == null)
             {
-                return BadRequest(new { message = "Ehhez az eszközhöz nincs aktív kikérés." });
+                return BadRequest(new { code = "equipment.noActiveCheckout", message = "This asset has no active assignment." });
             }
 
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -556,7 +565,7 @@ namespace AssetManagement.Api.Controllers
 
             if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
             }
 
             var isAdmin = roleClaim == UserRoles.Admin;
@@ -581,7 +590,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz sikeresen visszahozva.",
+                code = "equipment.returned",
+                message = "Asset returned successfully.",
                 equipmentId = equipment.Id,
                 checkoutId = activeCheckout.Id
             });
@@ -595,24 +605,24 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             if (equipment.Status == EquipmentStatus.CheckedOut)
             {
-                return BadRequest(new { message = "A kikért eszköz nem állítható karbantartás alá." });
+                return BadRequest(new { code = "equipment.maintenanceCheckedOutBlocked", message = "A checked-out asset cannot be moved to maintenance." });
             }
 
             if (equipment.Status == EquipmentStatus.Maintenance)
             {
-                return BadRequest(new { message = "Az eszköz már karbantartás alatt van." });
+                return BadRequest(new { code = "equipment.maintenanceAlready", message = "This asset is already in maintenance." });
             }
 
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
             }
 
             equipment.Status = EquipmentStatus.Maintenance;
@@ -621,7 +631,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz karbantartás alá helyezve.",
+                code = "equipment.maintenanceMarked",
+                message = "Asset moved to maintenance.",
                 equipmentId = equipment.Id
             });
         }
@@ -634,12 +645,12 @@ namespace AssetManagement.Api.Controllers
 
             if (equipment == null)
             {
-                return NotFound(new { message = "Az eszköz nem található." });
+                return NotFound(new { code = "equipment.notFound", message = "Asset not found." });
             }
 
             if (equipment.Status != EquipmentStatus.Maintenance)
             {
-                return BadRequest(new { message = "Csak karbantartás alatt lévő eszköz állítható elérhetőre." });
+                return BadRequest(new { code = "equipment.availableRequiresMaintenance", message = "Only assets in maintenance can be marked as available." });
             }
 
             equipment.Status = EquipmentStatus.Available;
@@ -648,7 +659,8 @@ namespace AssetManagement.Api.Controllers
 
             return Ok(new
             {
-                message = "Az eszköz ismét elérhető.",
+                code = "equipment.availableMarked",
+                message = "Asset is available again.",
                 equipmentId = equipment.Id
             });
         }

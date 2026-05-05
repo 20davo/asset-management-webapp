@@ -155,12 +155,16 @@ namespace AssetManagement.Api
                 {
                     context.HttpContext.Response.ContentType = "application/json";
 
-                    var message = context.HttpContext.Request.Path.StartsWithSegments("/api/auth/login")
-                        ? "Túl sok bejelentkezési próbálkozás. Próbáld újra később."
-                        : "Túl sok kérés. Próbáld újra később.";
+                    var isLoginRequest = context.HttpContext.Request.Path.StartsWithSegments("/api/auth/login");
+                    var code = isLoginRequest
+                        ? "rateLimit.login"
+                        : "rateLimit.generic";
+                    var message = isLoginRequest
+                        ? "Too many sign-in attempts. Please try again later."
+                        : "Too many requests. Please try again later.";
 
                     await context.HttpContext.Response.WriteAsJsonAsync(
-                        new { message },
+                        new { code, message },
                         cancellationToken: cancellationToken);
                 };
 

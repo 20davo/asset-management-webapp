@@ -91,7 +91,7 @@ namespace AssetManagement.Api.Controllers
 
             if (checkout == null)
             {
-                return NotFound(new { message = "A kikérés nem található." });
+                return NotFound(new { code = "checkout.notFound", message = "Assignment not found." });
             }
 
             return Ok(checkout);
@@ -105,7 +105,7 @@ namespace AssetManagement.Api.Controllers
 
             if (!userExists)
             {
-                return NotFound(new { message = "A felhasználó nem található." });
+                return NotFound(new { code = "user.notFound", message = "User not found." });
             }
 
             var checkouts = await _context.Checkouts
@@ -148,7 +148,7 @@ namespace AssetManagement.Api.Controllers
 
             if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized(new { message = "Érvénytelen felhasználói azonosító a tokenben." });
+                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
             }
 
             var checkouts = await _context.Checkouts
