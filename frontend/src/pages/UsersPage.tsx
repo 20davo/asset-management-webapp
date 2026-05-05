@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getAllCheckouts } from '../api/checkoutApi'
 import { getUsers } from '../api/userApi'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
@@ -22,6 +23,10 @@ interface UserSummaryCard extends ManagedUser {
   closedCheckouts: number
 }
 
+interface UsersLocationState {
+  successMessage?: string
+}
+
 type UserSortField =
   | 'name'
   | 'role'
@@ -33,10 +38,16 @@ type UserSortField =
 function UsersPage() {
   const { user } = useAuth()
   const { language, t } = useLanguage()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [users, setUsers] = useState<UserSummaryCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage] = useState(() => {
+    const state = location.state as UsersLocationState | null
+    return state?.successMessage ?? ''
+  })
   const searchQuery = getTextSearchParam(searchParams, 'search')
   const roleFilter = getEnumSearchParam(
     searchParams,
@@ -53,6 +64,14 @@ function UsersPage() {
   const sortDirection = getEnumSearchParam(searchParams, 'dir', ['asc', 'desc'] as const, 'asc')
 
   useEffect(() => {
+    const state = location.state as UsersLocationState | null
+
+    if (state?.successMessage) {
+      navigate(location.pathname + location.search, { replace: true, state: null })
+    }
+  }, [location.pathname, location.search, location.state, navigate])
+
+  useEffect(() => {
     async function loadUsers() {
       try {
         setErrorMessage('')
@@ -64,14 +83,14 @@ function UsersPage() {
 
         setUsers(userCards)
       } catch (error: unknown) {
-        setErrorMessage(getApiErrorMessage(error, t.users.loadError))
+        setErrorMessage(getApiErrorMessage(error, t.users.loadError, language))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadUsers()
-  }, [t.users.loadError])
+  }, [language, t.users.loadError])
 
   const filteredUsers = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
@@ -170,6 +189,8 @@ function UsersPage() {
 
   return (
     <div className="page-shell">
+      {successMessage && <FeedbackMessage type="success" message={successMessage} />}
+
       <section className="page-hero">
         <div className="page-hero__content">
           <span className="page-kicker">{t.users.heroKicker}</span>

@@ -111,14 +111,14 @@ function AllCheckoutsPage() {
         const data = await getAllCheckouts()
         setCheckouts(data)
       } catch (error: unknown) {
-        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError))
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError, language))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadCheckouts()
-  }, [t.checkouts.loadError])
+  }, [language, t.checkouts.loadError])
 
   const activeCount = checkouts.filter((checkout) => !checkout.returnedAt).length
   const overdueCount = checkouts.filter((checkout) =>

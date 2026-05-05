@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { useAuth } from '../context/AuthContext'
 import { REGISTRATION_ENABLED } from '../config/runtime'
 import { useLanguage } from '../context/LanguageContext'
@@ -55,7 +56,7 @@ function LoginPage() {
       await login(formData)
       navigate('/')
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.auth.loginError))
+      setErrorMessage(getApiErrorMessage(error, t.auth.loginError, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -189,7 +190,7 @@ function LoginPage() {
             </div>
           </div>
 
-          {errorMessage && <p className="form-error">{errorMessage}</p>}
+          {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
 
           <button
             type="submit"

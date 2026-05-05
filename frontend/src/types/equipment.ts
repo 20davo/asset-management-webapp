@@ -36,6 +36,7 @@ export interface EquipmentDetails {
   createdAt: string
   totalCheckoutCount: number
   lastCheckedOutAt: string | null
+  lastActivityAt: string | null
   activeCheckoutDueAt: string | null
   activeCheckoutUserName: string | null
   canReturn: boolean
@@ -55,6 +56,7 @@ export interface ReturnCheckoutRequest {
 
 export interface EquipmentActionResponse {
   message: string
+  code?: string
   equipmentId: number
   checkoutId: number
 }
@@ -78,5 +80,6 @@ export interface UpdateEquipmentRequest {
 
 export interface EquipmentMutationResponse {
   message: string
+  code?: string
   equipmentId: number
 }

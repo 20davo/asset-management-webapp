@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { changePassword } from '../api/authApi'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { useLanguage } from '../context/LanguageContext'
 import { getApiErrorMessage } from '../utils/apiErrors'
+import { getApiMessage } from '../utils/apiMessages'
 
 function ChangePasswordPage() {
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -31,12 +33,12 @@ function ChangePasswordPage() {
         confirmNewPassword,
       })
 
-      setSuccessMessage(response.message)
+      setSuccessMessage(getApiMessage(response.code, language) ?? response.message)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.profile.passwordChangeError))
+      setErrorMessage(getApiErrorMessage(error, t.profile.passwordChangeError, language))
       setSuccessMessage('')
     } finally {
       setIsSubmitting(false)
@@ -117,8 +119,8 @@ function ChangePasswordPage() {
               </div>
             </div>
 
-            {errorMessage && <p className="form-error">{errorMessage}</p>}
-            {successMessage && <p className="form-success">{successMessage}</p>}
+            {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
+            {successMessage && <FeedbackMessage type="success" message={successMessage} />}
 
             <div className="form-actions">
               <button type="submit" className="form-submit" disabled={isSubmitting}>

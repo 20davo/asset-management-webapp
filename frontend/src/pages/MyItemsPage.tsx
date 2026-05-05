@@ -11,7 +11,7 @@ import { isCheckoutOverdue } from '../utils/presentation'
 
 function MyItemsPage() {
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -23,14 +23,14 @@ function MyItemsPage() {
         const data = await getMyCheckouts()
         setCheckouts(data)
       } catch (error: unknown) {
-        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError))
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.loadError, language))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadCheckouts()
-  }, [t.checkouts.loadError])
+  }, [language, t.checkouts.loadError])
 
   const activeItems = useMemo(
     () => checkouts.filter((checkout) => !checkout.returnedAt),

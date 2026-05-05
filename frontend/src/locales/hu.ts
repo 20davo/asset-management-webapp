@@ -306,6 +306,7 @@ export const hu = {
         `Biztosan törölni szeretnéd ezt a felhasználót: ${name}? A kapcsolódó rekordok is törlődnek.`,
       updateSuccess: 'A felhasználó frissítve lett.',
       updateError: 'Nem sikerült frissíteni a felhasználót.',
+      deleteSuccess: 'A felhasználó sikeresen törölve lett.',
       deleteError: 'Nem sikerült törölni a felhasználót.',
       currentItemsKicker: 'Aktív eszközök',
       currentItemsTitle: 'Jelenleg kiadott eszközök',

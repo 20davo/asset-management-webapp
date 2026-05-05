@@ -96,11 +96,11 @@ export const en = {
       adminKicker: 'Admin',
       adminTitle: 'Add new asset',
       adminText:
-        'Add a new company asset.',
+        'Add a new company asset for the inventory.',
       liveKicker: 'Inventory',
       liveTitle: 'Asset list',
       liveText:
-        'Review assets, status, and available actions.',
+        'Browse the asset list and review key details.',
       emptyTitle: 'No assets yet',
       emptyText:
         'After the first asset is added, it will appear here.',
@@ -204,7 +204,7 @@ export const en = {
       allHeroKicker: 'Assignment log',
       allHeroTitle: 'Asset assignments',
       allHeroText:
-        'Active and returned asset assignments.',
+        'Active and returned asset assignments with current status.',
       allEmptyTitle: 'No assignment records yet',
       allEmptyText:
         'When the first asset is assigned, the record will appear here.',
@@ -307,9 +307,10 @@ export const en = {
         `Are you sure you want to delete ${name}? Related records will also be removed.`,
       updateSuccess: 'User updated successfully.',
       updateError: 'Could not update the user.',
+      deleteSuccess: 'User deleted successfully.',
       deleteError: 'Could not delete the user.',
       currentItemsKicker: 'Current assets',
-      currentItemsTitle: 'Active assigned assets',
+      currentItemsTitle: 'Active assignments',
       currentItemsText: 'Assets currently assigned to this user.',
       currentSearchPlaceholder: 'Search current assets',
       currentEmptyTitle: 'This user has no active items right now',

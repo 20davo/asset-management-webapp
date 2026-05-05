@@ -441,14 +441,6 @@ export function AssignedAssetCollectionView({
                         </span>
                       </div>
 
-                      {timelineState && (
-                        <div className="inventory-status-context">
-                          <span className="inventory-status-context__meta">
-                            {t.checkouts.dueAt}: {formatDateTime(checkout.dueAt, language)}
-                          </span>
-                        </div>
-                      )}
-
                       <div className="equipment-meta">
                       <div className="equipment-meta__item">
                         <span className="equipment-meta__label">

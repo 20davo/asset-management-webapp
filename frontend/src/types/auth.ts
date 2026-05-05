@@ -20,12 +20,14 @@ export interface RegisterRequest {
 
 export interface LoginResponse {
   message: string
+  code?: string
   token: string
   user: AuthUser
 }
 
 export interface RegisterResponse {
   message: string
+  code?: string
 }
 
 export interface ChangePasswordRequest {
@@ -36,4 +38,5 @@ export interface ChangePasswordRequest {
 
 export interface MessageResponse {
   message: string
+  code?: string
 }

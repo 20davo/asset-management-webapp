@@ -27,6 +27,33 @@ export function EquipmentDetailsShowcase({
   onMarkMaintenance,
 }: EquipmentDetailsShowcaseProps) {
   const { language, t } = useLanguage()
+  const hasDescription = !!equipment.description
+
+  const recordMeta = (
+    <div className="equipment-meta equipment-meta--record">
+      <div className="equipment-meta__item">
+        <span className="equipment-meta__label">{t.details.recorded}</span>
+        <span className="equipment-meta__value">
+          {formatDateTime(equipment.createdAt, language)}
+        </span>
+      </div>
+
+      {canSeeActiveCheckoutDetails && activeCheckoutDueAt && (
+        <div className="equipment-meta__item">
+          <span className="equipment-meta__label">
+            {activeCheckoutOverdue
+              ? t.details.overduePrefix
+              : activeCheckoutDueSoon
+                ? t.details.dueSoonPrefix
+                : t.details.deadlinePrefix}
+          </span>
+          <span className="equipment-meta__value">
+            {formatDateTime(activeCheckoutDueAt, language)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <section className="section-card">
@@ -64,46 +91,20 @@ export function EquipmentDetailsShowcase({
                   </span>
                 )}
               </div>
-              {equipment.description && (
-                <p className="equipment-card__subtitle">{equipment.description}</p>
+              <span className="equipment-card__serial">SN {equipment.serialNumber}</span>
+              <div className="equipment-card__signal-row">
+                <span className="equipment-category-chip">{equipment.category}</span>
+              </div>
+              {recordMeta}
+              {hasDescription && (
+                <p className="equipment-card__subtitle equipment-card__subtitle--record-description">
+                  {equipment.description}
+                </p>
               )}
             </div>
             <span className={getStatusBadgeClass(equipment.status)}>
               {getStatusLabel(equipment.status, language)}
             </span>
-          </div>
-
-          <div className="equipment-card__signal-row">
-            <span className="equipment-category-chip">{equipment.category}</span>
-          </div>
-
-          <div className="equipment-meta">
-            <div className="equipment-meta__item">
-              <span className="equipment-meta__label">{t.details.serial}</span>
-              <span className="equipment-meta__value">{equipment.serialNumber}</span>
-            </div>
-
-            <div className="equipment-meta__item">
-              <span className="equipment-meta__label">{t.details.recorded}</span>
-              <span className="equipment-meta__value">
-                {formatDateTime(equipment.createdAt, language)}
-              </span>
-            </div>
-
-            {canSeeActiveCheckoutDetails && activeCheckoutDueAt && (
-              <div className="equipment-meta__item">
-                <span className="equipment-meta__label">
-                  {activeCheckoutOverdue
-                    ? t.details.overduePrefix
-                    : activeCheckoutDueSoon
-                      ? t.details.dueSoonPrefix
-                      : t.details.deadlinePrefix}
-                </span>
-                <span className="equipment-meta__value">
-                  {formatDateTime(activeCheckoutDueAt, language)}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>

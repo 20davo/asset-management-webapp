@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api/authApi'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { useLanguage } from '../context/LanguageContext'
 import { getApiErrorMessage } from '../utils/apiErrors'
+import { getApiMessage } from '../utils/apiMessages'
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -10,7 +12,7 @@ function isValidEmail(email: string) {
 
 function RegisterPage() {
   const navigate = useNavigate()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -50,13 +52,13 @@ function RegisterPage() {
         ...formData,
         email: normalizedEmail,
       })
-      setSuccessMessage(response.message)
+      setSuccessMessage(getApiMessage(response.code, language) ?? response.message)
 
       setTimeout(() => {
         navigate('/login')
       }, 1000)
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.auth.registerError))
+      setErrorMessage(getApiErrorMessage(error, t.auth.registerError, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -205,8 +207,8 @@ function RegisterPage() {
             </div>
           </div>
 
-          {errorMessage && <p className="form-error">{errorMessage}</p>}
-          {successMessage && <p className="form-success">{successMessage}</p>}
+          {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
+          {successMessage && <FeedbackMessage type="success" message={successMessage} />}
 
           <button
             type="submit"

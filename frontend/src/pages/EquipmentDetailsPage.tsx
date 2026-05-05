@@ -21,7 +21,9 @@ import { useLanguage } from '../context/LanguageContext'
 import { EquipmentCheckoutHistory } from '../components/equipment/EquipmentCheckoutHistory'
 import { EquipmentDetailsShowcase } from '../components/equipment/EquipmentDetailsShowcase'
 import { EquipmentDetailsSummary } from '../components/equipment/EquipmentDetailsSummary'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { getApiErrorMessage } from '../utils/apiErrors'
+import { getApiMessage } from '../utils/apiMessages'
 
 function formatDateTimeLocal(date: Date) {
   const year = date.getFullYear()
@@ -69,11 +71,11 @@ function EquipmentDetailsPage() {
       const data = await getEquipmentById(Number(id))
       setEquipment(data)
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.details.loadError))
+      setErrorMessage(getApiErrorMessage(error, t.details.loadError, language))
     } finally {
       setIsLoading(false)
     }
-  }, [id, t.details.loadError, t.details.missingId])
+  }, [id, language, t.details.loadError, t.details.missingId])
 
   useEffect(() => {
     void loadEquipmentDetails()
@@ -120,14 +122,15 @@ function EquipmentDetailsPage() {
     try {
       const assignedUserId = isAdminUser ? Number(checkoutForm.assignedUserId) : undefined
 
-      await checkoutEquipment(Number(id), {
+      const response = await checkoutEquipment(Number(id), {
         assignedUserId: isAdminUser ? assignedUserId : undefined,
         dueAt: new Date(checkoutForm.dueAt).toISOString(),
         note: checkoutForm.note.trim() || undefined,
       })
 
       setSuccessMessage(
-        isAdminUser ? t.details.assignSuccess : t.details.checkoutSuccess,
+        getApiMessage(response.code, language) ??
+          (isAdminUser ? t.details.assignSuccess : t.details.checkoutSuccess),
       )
       setCheckoutForm({
         assignedUserId: assignableUsers[0]?.id ? String(assignableUsers[0].id) : '',
@@ -137,7 +140,7 @@ function EquipmentDetailsPage() {
 
       await loadEquipmentDetails()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.details.checkoutError))
+      setErrorMessage(getApiErrorMessage(error, t.details.checkoutError, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -155,16 +158,16 @@ function EquipmentDetailsPage() {
     setIsSubmitting(true)
 
     try {
-      await returnEquipment(Number(id), {
+      const response = await returnEquipment(Number(id), {
         note: returnNote.trim() || undefined,
       })
 
-      setSuccessMessage(t.details.returnSuccess)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.details.returnSuccess)
       setReturnNote('')
 
       await loadEquipmentDetails()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.details.returnError))
+      setErrorMessage(getApiErrorMessage(error, t.details.returnError, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -180,11 +183,11 @@ function EquipmentDetailsPage() {
     setIsStatusSubmitting(true)
 
     try {
-      await markEquipmentMaintenance(Number(id))
-      setSuccessMessage(t.details.maintenanceSuccess)
+      const response = await markEquipmentMaintenance(Number(id))
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.details.maintenanceSuccess)
       await loadEquipmentDetails()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.details.maintenanceError))
+      setErrorMessage(getApiErrorMessage(error, t.details.maintenanceError, language))
     } finally {
       setIsStatusSubmitting(false)
     }
@@ -200,11 +203,11 @@ function EquipmentDetailsPage() {
     setIsStatusSubmitting(true)
 
     try {
-      await markEquipmentAvailable(Number(id))
-      setSuccessMessage(t.details.availableSuccess)
+      const response = await markEquipmentAvailable(Number(id))
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.details.availableSuccess)
       await loadEquipmentDetails()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.details.availableError))
+      setErrorMessage(getApiErrorMessage(error, t.details.availableError, language))
     } finally {
       setIsStatusSubmitting(false)
     }
@@ -215,11 +218,11 @@ function EquipmentDetailsPage() {
   }
 
   if (errorMessage && !equipment) {
-    return <p className="form-error">{errorMessage}</p>
+    return <FeedbackMessage type="error" message={errorMessage} />
   }
 
   if (!equipment) {
-    return <p className="form-error">{t.details.notFound}</p>
+    return <FeedbackMessage type="error" message={t.details.notFound} />
   }
 
   const canCheckoutNow = equipment.status === 'Available'
@@ -233,7 +236,11 @@ function EquipmentDetailsPage() {
   const activeCheckoutDueAt =
     activeCheckoutEntry?.dueAt ?? equipment.activeCheckoutDueAt ?? null
   const lastMovementAt =
-    latestCheckoutEntry?.checkedOutAt ?? equipment.lastCheckedOutAt ?? null
+    equipment.lastActivityAt ??
+    latestCheckoutEntry?.returnedAt ??
+    latestCheckoutEntry?.checkedOutAt ??
+    equipment.lastCheckedOutAt ??
+    null
   const activeCheckoutOverdue = activeCheckoutDueAt
     ? isCheckoutOverdue(activeCheckoutDueAt, null)
     : false
@@ -250,8 +257,8 @@ function EquipmentDetailsPage() {
         {t.details.back}
       </Link>
 
-      {errorMessage && <p className="form-error">{errorMessage}</p>}
-      {successMessage && <p className="form-success">{successMessage}</p>}
+      {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
+      {successMessage && <FeedbackMessage type="success" message={successMessage} />}
 
       <section className="page-hero page-hero--details">
         <div className="page-hero__content">

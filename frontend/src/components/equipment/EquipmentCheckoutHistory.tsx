@@ -67,7 +67,7 @@ export function EquipmentCheckoutHistory({ checkouts }: EquipmentCheckoutHistory
               </div>
 
               {checkout.note && (
-                <div className="equipment-description">
+                <div className="equipment-description equipment-description--history-note">
                   <span className="equipment-description__label">{t.details.note}</span>
                   <p className="equipment-description__text">{checkout.note}</p>
                 </div>

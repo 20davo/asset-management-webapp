@@ -86,7 +86,7 @@ export function InventoryEquipmentCard({
             </div>
           )}
 
-          <div className="equipment-meta">
+          <div className={`equipment-meta equipment-meta--inventory-card${statusContext ? '' : ' equipment-meta--inventory-card-full'}`}>
             <div className="equipment-meta__item">
               <span className="equipment-meta__label">{t.inventory.recordedAt}</span>
               <span className="equipment-meta__value">

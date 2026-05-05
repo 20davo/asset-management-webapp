@@ -17,6 +17,7 @@ import {
   isCheckoutOverdue,
 } from '../utils/presentation'
 import { getApiErrorMessage } from '../utils/apiErrors'
+import { getApiMessage } from '../utils/apiMessages'
 import {
   getEnumSearchParam,
   getTextSearchParam,
@@ -36,6 +37,7 @@ import {
 import { InventoryEquipmentRow } from '../components/equipment/InventoryEquipmentRow'
 import { InventoryFilters } from '../components/equipment/InventoryFilters'
 import { InventoryActions } from '../components/equipment/InventoryActions'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 const CATEGORY_DATALIST_ID = 'equipment-category-suggestions'
@@ -110,11 +112,11 @@ function EquipmentListPage() {
       const data = await getEquipments()
       setEquipments(data)
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.loadError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.loadError, language))
     } finally {
       setIsLoading(false)
     }
-  }, [t.inventory.loadError])
+  }, [language, t.inventory.loadError])
 
   useEffect(() => {
     void loadEquipments()
@@ -264,7 +266,7 @@ function EquipmentListPage() {
     setIsCreating(true)
 
     try {
-      await createEquipment({
+      const response = await createEquipment({
         name: createForm.name.trim(),
         category: normalizeCategoryValue(createForm.category),
         description: createForm.description.trim() || undefined,
@@ -272,12 +274,12 @@ function EquipmentListPage() {
         serialNumber: createForm.serialNumber.trim(),
       })
 
-      setSuccessMessage(t.inventory.createSuccess)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.inventory.createSuccess)
       setCreateForm(emptyEquipmentForm)
       setIsCreatePanelOpen(false)
       await loadEquipments()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.createError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.createError, language))
     } finally {
       setIsCreating(false)
     }
@@ -292,7 +294,7 @@ function EquipmentListPage() {
     setIsUpdating(true)
 
     try {
-      await updateEquipment(equipmentId, {
+      const response = await updateEquipment(equipmentId, {
         name: editForm.name.trim(),
         category: normalizeCategoryValue(editForm.category),
         description: editForm.description.trim() || undefined,
@@ -301,12 +303,12 @@ function EquipmentListPage() {
         serialNumber: editForm.serialNumber.trim(),
       })
 
-      setSuccessMessage(t.inventory.updateSuccess)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.inventory.updateSuccess)
       setEditingEquipmentId(null)
       setEditForm(emptyEquipmentForm)
       await loadEquipments()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.updateError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.updateError, language))
     } finally {
       setIsUpdating(false)
     }
@@ -323,8 +325,8 @@ function EquipmentListPage() {
     setDeletingEquipmentId(equipmentId)
 
     try {
-      await deleteEquipment(equipmentId)
-      setSuccessMessage(t.inventory.deleteSuccess)
+      const response = await deleteEquipment(equipmentId)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.inventory.deleteSuccess)
 
       if (editingEquipmentId === equipmentId) {
         cancelEdit()
@@ -332,7 +334,7 @@ function EquipmentListPage() {
 
       await loadEquipments()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.deleteError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.deleteError, language))
     } finally {
       setDeletingEquipmentId(null)
     }
@@ -343,11 +345,11 @@ function EquipmentListPage() {
     setStatusChangingEquipmentId(equipmentId)
 
     try {
-      await markEquipmentMaintenance(equipmentId)
-      setSuccessMessage(t.inventory.maintenanceSuccess)
+      const response = await markEquipmentMaintenance(equipmentId)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.inventory.maintenanceSuccess)
       await loadEquipments()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.maintenanceError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.maintenanceError, language))
     } finally {
       setStatusChangingEquipmentId(null)
     }
@@ -358,11 +360,11 @@ function EquipmentListPage() {
     setStatusChangingEquipmentId(equipmentId)
 
     try {
-      await markEquipmentAvailable(equipmentId)
-      setSuccessMessage(t.inventory.availableSuccess)
+      const response = await markEquipmentAvailable(equipmentId)
+      setSuccessMessage(getApiMessage(response.code, language) ?? t.inventory.availableSuccess)
       await loadEquipments()
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.inventory.availableError))
+      setErrorMessage(getApiErrorMessage(error, t.inventory.availableError, language))
     } finally {
       setStatusChangingEquipmentId(null)
     }
@@ -658,7 +660,7 @@ function EquipmentListPage() {
   }
 
   if (errorMessage && equipments.length === 0) {
-    return <p className="form-error">{errorMessage}</p>
+    return <FeedbackMessage type="error" message={errorMessage} />
   }
 
   return (
@@ -706,8 +708,8 @@ function EquipmentListPage() {
         </article>
       </section>
 
-      {errorMessage && <p className="form-error">{errorMessage}</p>}
-      {successMessage && <p className="form-success">{successMessage}</p>}
+      {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
+      {successMessage && <FeedbackMessage type="success" message={successMessage} />}
 
       <datalist id={CATEGORY_DATALIST_ID}>
         {categories.map((category) => (

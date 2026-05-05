@@ -4,11 +4,13 @@ import { getUserCheckouts } from '../api/checkoutApi'
 import { deleteUser, getUser, updateUser as updateUserRequest } from '../api/userApi'
 import { AssignedAssetCollectionView } from '../components/shared/AssignedAssetCollectionView'
 import { CheckoutCollectionView } from '../components/shared/CheckoutCollectionView'
+import { FeedbackMessage } from '../components/shared/FeedbackMessage'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import type { CheckoutItem } from '../types/checkout'
 import type { ManagedUser } from '../types/user'
 import { getApiErrorMessage } from '../utils/apiErrors'
+import { getApiMessage } from '../utils/apiMessages'
 import { getRoleLabel, isCheckoutOverdue } from '../utils/presentation'
 
 interface UserFormState {
@@ -59,14 +61,14 @@ function UserDetailsPage() {
         })
         setCheckouts(userCheckouts)
       } catch (error: unknown) {
-        setErrorMessage(getApiErrorMessage(error, t.checkouts.userLoadError))
+        setErrorMessage(getApiErrorMessage(error, t.checkouts.userLoadError, language))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadData()
-  }, [t.checkouts.userLoadError, t.checkouts.userMissing, userId])
+  }, [language, t.checkouts.userLoadError, t.checkouts.userMissing, userId])
 
   const activeItems = useMemo(
     () => checkouts.filter((checkout) => !checkout.returnedAt),
@@ -114,7 +116,7 @@ function UserDetailsPage() {
 
       setSuccessMessage(t.users.updateSuccess)
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.users.updateError))
+      setErrorMessage(getApiErrorMessage(error, t.users.updateError, language))
       setSuccessMessage('')
     } finally {
       setIsSaving(false)
@@ -135,10 +137,16 @@ function UserDetailsPage() {
     try {
       setIsDeleting(true)
       setErrorMessage('')
-      await deleteUser(selectedUser.id)
-      navigate('/users', { replace: true })
+      const response = await deleteUser(selectedUser.id)
+      const deleteSuccessMessage =
+        getApiMessage(response.code, language) ?? response.message ?? t.users.deleteSuccess
+
+      navigate('/users', {
+        replace: true,
+        state: { successMessage: deleteSuccessMessage },
+      })
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, t.users.deleteError))
+      setErrorMessage(getApiErrorMessage(error, t.users.deleteError, language))
     } finally {
       setIsDeleting(false)
     }
@@ -153,11 +161,11 @@ function UserDetailsPage() {
   }
 
   if (errorMessage && !selectedUser) {
-    return <p className="form-error">{errorMessage}</p>
+    return <FeedbackMessage type="error" message={errorMessage} />
   }
 
   if (!selectedUser) {
-    return <p className="form-error">{t.checkouts.userNotFound}</p>
+    return <FeedbackMessage type="error" message={t.checkouts.userNotFound} />
   }
 
   return (
@@ -166,8 +174,8 @@ function UserDetailsPage() {
         {t.users.backToUsers}
       </Link>
 
-      {errorMessage && <p className="form-error">{errorMessage}</p>}
-      {successMessage && <p className="form-success">{successMessage}</p>}
+      {errorMessage && <FeedbackMessage type="error" message={errorMessage} />}
+      {successMessage && <FeedbackMessage type="success" message={successMessage} />}
 
       <section className="page-hero">
         <div className="page-hero__content">
