@@ -17,7 +17,7 @@ export interface InventoryStatusContext {
 }
 
 interface InventoryEquipmentCardProps {
-  actions: ReactNode
+  actions?: ReactNode
   canSeeDueState: boolean
   dueState: InventoryDueState | null
   equipment: EquipmentListItem
@@ -111,7 +111,7 @@ export function InventoryEquipmentCard({
             </div>
           )}
 
-          <div className="equipment-card__actions">{actions}</div>
+          {actions && <div className="equipment-card__actions">{actions}</div>}
         </div>
       </div>
     </article>

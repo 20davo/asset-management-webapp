@@ -644,7 +644,7 @@ function EquipmentListPage() {
     return (
       <InventoryEquipmentCard
         key={equipment.id}
-        actions={renderInventoryActions(equipment, { shortLabels: true })}
+        actions={isAdmin ? renderInventoryActions(equipment, { shortLabels: true }) : null}
         canSeeDueState={canSeeDueState}
         dueState={dueState}
         equipment={equipment}
@@ -854,9 +854,11 @@ function EquipmentListPage() {
                 <span className="data-list__heading">{renderSortableHeading('serial', t.inventory.serial)}</span>
                 <span className="data-list__heading">{renderSortableHeading('status', t.common.status)}</span>
                 <span className="data-list__heading">{renderSortableHeading('recorded', t.inventory.recordedAt)}</span>
-                <span className="data-list__heading data-list__heading--actions">
-                  {t.common.actions}
-                </span>
+                {isAdmin && (
+                  <span className="data-list__heading data-list__heading--actions">
+                    {t.common.actions}
+                  </span>
+                )}
               </div>
 
               {filteredEquipments.map((equipment) => {
@@ -871,7 +873,7 @@ function EquipmentListPage() {
                 ) : (
                   <InventoryEquipmentRow
                     key={equipment.id}
-                    actions={renderInventoryActions(equipment, { compact: true })}
+                    actions={isAdmin ? renderInventoryActions(equipment, { compact: true }) : null}
                     canSeeDueState={canSeeDueState}
                     dueState={dueState}
                     equipment={equipment}

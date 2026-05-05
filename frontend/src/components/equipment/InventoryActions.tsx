@@ -141,16 +141,18 @@ export function InventoryActions({
 
   return (
     <>
-      <Link
-        to={`/equipment/${equipment.id}`}
-        className={`button-link button-secondary${
-          compact ? ' button-compact-label' : detailsActionClass
-        }`}
-        title={t.inventory.details}
-        aria-label={t.inventory.details}
-      >
-        {detailsLabel}
-      </Link>
+      {isAdmin && (
+        <Link
+          to={`/equipment/${equipment.id}`}
+          className={`button-link button-secondary${
+            compact ? ' button-compact-label' : detailsActionClass
+          }`}
+          title={t.inventory.details}
+          aria-label={t.inventory.details}
+        >
+          {detailsLabel}
+        </Link>
+      )}
 
       {isAdmin && (
         <button

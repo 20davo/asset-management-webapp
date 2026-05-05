@@ -1473,7 +1473,7 @@ button.navbar__user-trigger:hover {
 
 .data-list--inventory-user .data-list__header,
 .data-list--inventory-user .data-list__row {
-  grid-template-columns: minmax(0, 2.2fr) minmax(180px, 1fr) 140px 150px 140px 88px;
+  grid-template-columns: minmax(0, 2.2fr) minmax(180px, 1fr) 140px 150px 140px;
 }
 
 .data-list--inventory-admin .data-list__header,

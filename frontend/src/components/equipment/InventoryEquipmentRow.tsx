@@ -7,7 +7,7 @@ import { ProtectedAssetImage } from '../media/ProtectedAssetImage'
 import type { InventoryDueState, InventoryStatusContext } from './InventoryEquipmentCard'
 
 interface InventoryEquipmentRowProps {
-  actions: ReactNode
+  actions?: ReactNode
   canSeeDueState: boolean
   dueState: InventoryDueState | null
   equipment: EquipmentListItem
@@ -97,9 +97,11 @@ export function InventoryEquipmentRow({
         </span>
       </div>
 
-      <div className="data-list__cell data-list__cell--actions">
-        <div className="data-list__action-row">{actions}</div>
-      </div>
+      {actions && (
+        <div className="data-list__cell data-list__cell--actions">
+          <div className="data-list__action-row">{actions}</div>
+        </div>
+      )}
     </article>
   )
 }
