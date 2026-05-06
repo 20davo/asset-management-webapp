@@ -27,6 +27,26 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(error, 'Fallback', 'en')).toBe('Backend fallback message.')
   })
 
+  it('uses validation errors when the backend fallback message is empty', () => {
+    const error = createAxiosError({
+      message: '   ',
+      errors: {
+        Name: ['Name is required.'],
+      },
+    })
+
+    expect(getApiErrorMessage(error, 'Fallback', 'en')).toBe('Name is required.')
+  })
+
+  it('uses the fallback when the backend response has no useful message', () => {
+    const error = createAxiosError({
+      message: '   ',
+      errors: {},
+    })
+
+    expect(getApiErrorMessage(error, 'Fallback', 'en')).toBe('Fallback')
+  })
+
   it('uses validation errors before the generic fallback', () => {
     const error = createAxiosError({
       errors: {
