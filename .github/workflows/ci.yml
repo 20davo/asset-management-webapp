@@ -9,8 +9,11 @@ on:
 
 jobs:
   backend:
-    name: Backend build and tests
+    name: Backend CI - build and tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api/AssetManagement
 
     steps:
       - name: Checkout
@@ -22,17 +25,20 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore backend
-        run: dotnet restore api/AssetManagement/AssetManagement.sln
+        run: dotnet restore AssetManagement.sln
 
       - name: Build backend
-        run: dotnet build api/AssetManagement/AssetManagement.sln --configuration Release --no-restore
+        run: dotnet build AssetManagement.sln --configuration Release --no-restore
 
       - name: Test backend
-        run: dotnet test api/AssetManagement/AssetManagement.sln --configuration Release --no-build --verbosity normal
+        run: dotnet test AssetManagement.sln --configuration Release --no-build --verbosity normal
 
   frontend:
-    name: Frontend lint and build
+    name: Frontend CI - lint and build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
       - name: Checkout
@@ -46,13 +52,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        working-directory: frontend
         run: npm ci
 
       - name: Lint frontend
-        working-directory: frontend
         run: npm run lint -- --max-warnings=0
 
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Test frontend
+        run: npm run test
+
       - name: Build frontend
-        working-directory: frontend
         run: npm run build
