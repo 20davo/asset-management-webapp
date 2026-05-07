@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react'
 import type { ChangeEvent, Dispatch, FormEvent, SetStateAction } from 'react'
 import { useLanguage } from '../../context/LanguageContext'
 import { ProtectedAssetImage } from '../media/ProtectedAssetImage'
@@ -62,20 +63,49 @@ export function EquipmentForm({
   titleBlock,
 }: EquipmentFormProps) {
   const { t } = useLanguage()
+  const formEndRef = useRef<HTMLDivElement | null>(null)
+  const scrollToFormEnd = useCallback(() => {
+    formEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'end',
+    })
+  }, [])
+
+  useEffect(() => {
+    const timeoutIds = [
+      window.setTimeout(scrollToFormEnd, 0),
+      window.setTimeout(scrollToFormEnd, 250),
+    ]
+
+    return () => timeoutIds.forEach(window.clearTimeout)
+  }, [scrollToFormEnd])
+
+  useEffect(() => {
+    if (!form.imagePreviewUrl) {
+      return undefined
+    }
+
+    const timeoutIds = [
+      window.setTimeout(scrollToFormEnd, 50),
+      window.setTimeout(scrollToFormEnd, 300),
+    ]
+
+    return () => timeoutIds.forEach(window.clearTimeout)
+  }, [form.imagePreviewUrl, scrollToFormEnd])
 
   return (
     <form className="auth-form admin-form" onSubmit={onSubmit}>
-      <div className="admin-form__fields">
-        {titleBlock && (
-          <div className="section-heading section-heading--tight">
-            <div>
-              <span className="section-heading__eyebrow">{titleBlock.kicker}</span>
-              <h3 className="section-heading__title">{titleBlock.title}</h3>
-            </div>
+      {titleBlock && (
+        <div className="admin-form__title">
+          <div className="admin-form__title-top">
+            <span className="section-heading__eyebrow">{titleBlock.kicker}</span>
             <p className="section-heading__text">{titleBlock.text}</p>
           </div>
-        )}
+          <h3 className="section-heading__title">{titleBlock.title}</h3>
+        </div>
+      )}
 
+      <div className="admin-form__fields">
         <div className="form-row">
           <div className="form-field">
             <label htmlFor={`${idPrefix}-name`}>{t.inventory.name}</label>
@@ -193,6 +223,8 @@ export function EquipmentForm({
           )}
         </div>
       </aside>
+
+      <div ref={formEndRef} className="admin-form__scroll-target" aria-hidden="true" />
     </form>
   )
 }

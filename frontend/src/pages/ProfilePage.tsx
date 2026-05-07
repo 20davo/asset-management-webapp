@@ -14,7 +14,6 @@ function ProfilePage() {
   const primaryRoute = user.role === 'Admin' ? '/users' : '/my-items'
   const primaryLabel =
     user.role === 'Admin' ? t.profile.primaryAdminAction : t.profile.primaryUserAction
-  const hasLongEmail = user.email.length > 28
   const secondaryTitle =
     user.role === 'Admin' ? t.profile.managementTitle : t.profile.quickLinksTitle
   const secondaryText =
@@ -50,29 +49,29 @@ function ProfilePage() {
             </div>
           </div>
 
-          <div
-            className={`profile-summary-grid ${
-              hasLongEmail ? 'profile-summary-grid--long-email' : ''
-            }`}
-          >
-            <article className="profile-summary-card">
-              <span className="profile-summary-card__label">{t.profile.nameLabel}</span>
-              <strong className="profile-summary-card__value">{user.name}</strong>
-            </article>
+          <div className="profile-summary-grid">
+            <div className="profile-summary-column profile-summary-column--main">
+              <article className="profile-summary-item">
+                <span className="profile-summary-item__label">{t.profile.nameLabel}</span>
+                <strong className="profile-summary-item__value">{user.name}</strong>
+              </article>
 
-            <article className="profile-summary-card profile-summary-card--email">
-              <span className="profile-summary-card__label">{t.profile.emailLabel}</span>
-              <strong className="profile-summary-card__value profile-page__email">
-                {user.email}
-              </strong>
-            </article>
+              <article className="profile-summary-item">
+                <span className="profile-summary-item__label">{t.profile.emailLabel}</span>
+                <strong className="profile-summary-item__value profile-page__email">
+                  {user.email}
+                </strong>
+              </article>
+            </div>
 
-            <article className="profile-summary-card profile-summary-card--role">
-              <span className="profile-summary-card__label">{t.profile.roleLabel}</span>
-              <strong className="profile-summary-card__value">
-                {getRoleLabel(user.role, language)}
-              </strong>
-            </article>
+            <div className="profile-summary-column profile-summary-column--role">
+              <article className="profile-summary-item">
+                <span className="profile-summary-item__label">{t.profile.roleLabel}</span>
+                <strong className="profile-summary-item__value">
+                  {getRoleLabel(user.role, language)}
+                </strong>
+              </article>
+            </div>
           </div>
         </article>
 

@@ -720,14 +720,14 @@ function EquipmentListPage() {
       {isAdmin && (
         <section className="section-card section-card--compact admin-panel">
           <div className="admin-panel__header">
-            <div className="section-heading section-heading--tight">
-              <div>
+            <div className="admin-panel__heading">
+              <div className="admin-panel__heading-top">
                 <span className="section-heading__eyebrow">{t.inventory.adminKicker}</span>
-                {isCreatePanelOpen && (
-                  <h2 className="section-heading__title">{t.inventory.adminTitle}</h2>
-                )}
+                <p className="section-heading__text">{t.inventory.adminText}</p>
               </div>
-              <p className="section-heading__text">{t.inventory.adminText}</p>
+              {isCreatePanelOpen && (
+                <h2 className="section-heading__title">{t.inventory.adminTitle}</h2>
+              )}
             </div>
 
             <button
