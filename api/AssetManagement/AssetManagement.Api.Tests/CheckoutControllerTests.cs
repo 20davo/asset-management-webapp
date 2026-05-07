@@ -57,12 +57,12 @@ public class CheckoutControllerTests
             });
         await context.SaveChangesAsync();
 
-        var controller = new CheckoutController(context);
+        var controller = TestSupport.CreateCheckoutController(context);
         TestSupport.SignIn(controller, 1, UserRoles.User);
 
         var result = await controller.GetMyCheckouts();
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var okResult = Assert.IsType<OkObjectResult>(result);
         var checkouts = Assert.IsAssignableFrom<IEnumerable<CheckoutResponseDto>>(okResult.Value).ToList();
 
         Assert.Single(checkouts);
@@ -76,11 +76,11 @@ public class CheckoutControllerTests
     {
         await using var context = TestSupport.CreateDbContext();
 
-        var controller = new CheckoutController(context);
+        var controller = TestSupport.CreateCheckoutController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.GetByUser(404);
 
-        Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.IsType<NotFoundObjectResult>(result);
     }
 }

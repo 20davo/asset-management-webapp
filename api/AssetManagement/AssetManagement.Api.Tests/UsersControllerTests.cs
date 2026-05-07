@@ -28,7 +28,7 @@ public class UsersControllerTests
         context.Users.Add(CreateUser(1, UserRoles.Admin, "current.admin@example.com"));
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.Delete(1);
@@ -61,7 +61,7 @@ public class UsersControllerTests
         });
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.Delete(2);
@@ -92,7 +92,7 @@ public class UsersControllerTests
         });
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.Delete(2);
@@ -112,7 +112,7 @@ public class UsersControllerTests
         context.Users.Add(CreateUser(1, UserRoles.Admin, "admin@example.com"));
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 2, UserRoles.Admin);
 
         var result = await controller.Update(1, new UpdateUserDto
@@ -122,7 +122,7 @@ public class UsersControllerTests
             Role = UserRoles.User
         });
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.IsType<BadRequestObjectResult>(result);
 
         var user = await context.Users.SingleAsync(candidate => candidate.Id == 1);
         Assert.Equal(UserRoles.Admin, user.Role);
@@ -137,7 +137,7 @@ public class UsersControllerTests
             CreateUser(2, UserRoles.User, "regular@example.com"));
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.Update(2, new UpdateUserDto
@@ -147,7 +147,7 @@ public class UsersControllerTests
             Role = UserRoles.User
         });
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.IsType<BadRequestObjectResult>(result);
 
         var user = await context.Users.SingleAsync(candidate => candidate.Id == 2);
         Assert.Equal("regular@example.com", user.Email);
@@ -162,7 +162,7 @@ public class UsersControllerTests
             CreateUser(2, UserRoles.User, "regular@example.com"));
         await context.SaveChangesAsync();
 
-        var controller = new UsersController(context);
+        var controller = TestSupport.CreateUsersController(context);
         TestSupport.SignIn(controller, 1, UserRoles.Admin);
 
         var result = await controller.Update(2, new UpdateUserDto
@@ -172,7 +172,7 @@ public class UsersControllerTests
             Role = UserRoles.User
         });
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var okResult = Assert.IsType<OkObjectResult>(result);
         var userDto = Assert.IsType<UserSummaryDto>(okResult.Value);
 
         Assert.Equal("Updated User", userDto.Name);

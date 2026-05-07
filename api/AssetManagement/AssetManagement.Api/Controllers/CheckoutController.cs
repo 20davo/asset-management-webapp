@@ -1,10 +1,10 @@
-﻿using AssetManagement.Api.Constants;
-using AssetManagement.Api.Data;
+using AssetManagement.Api.Constants;
 using AssetManagement.Api.Dtos;
+using AssetManagement.Api.Extensions;
+using AssetManagement.Api.Responses;
+using AssetManagement.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace AssetManagement.Api.Controllers
 {
@@ -13,85 +13,29 @@ namespace AssetManagement.Api.Controllers
     [Authorize]
     public class CheckoutController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ICheckoutService _checkoutService;
 
-        public CheckoutController(AppDbContext context)
+        public CheckoutController(ICheckoutService checkoutService)
         {
-            _context = context;
+            _checkoutService = checkoutService;
         }
 
         [HttpGet]
         [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetAll()
         {
-            var checkouts = await _context.Checkouts
-                .Include(c => c.Equipment)
-                .Include(c => c.User)
-                .OrderByDescending(c => c.CheckedOutAt)
-                .Select(c => new CheckoutResponseDto
-                {
-                    Id = c.Id,
-                    CheckedOutAt = c.CheckedOutAt,
-                    DueAt = c.DueAt,
-                    ReturnedAt = c.ReturnedAt,
-                    Note = c.Note,
-                    Equipment = new CheckoutEquipmentDto
-                    {
-                        Id = c.Equipment!.Id,
-                        Name = c.Equipment.Name,
-                        Category = c.Equipment.Category,
-                        ImageUrl = c.Equipment.ImageUrl,
-                        SerialNumber = c.Equipment.SerialNumber,
-                        Status = c.Equipment.Status
-                    },
-                    User = new CheckoutUserDto
-                    {
-                        Id = c.User!.Id,
-                        Name = c.User.Name,
-                        Email = c.User.Email
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(checkouts);
+            return Ok(await _checkoutService.GetAllAsync());
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<CheckoutResponseDto>> GetById(int id)
         {
-            var checkout = await _context.Checkouts
-                .Include(c => c.Equipment)
-                .Include(c => c.User)
-                .Where(c => c.Id == id)
-                .Select(c => new CheckoutResponseDto
-                {
-                    Id = c.Id,
-                    CheckedOutAt = c.CheckedOutAt,
-                    DueAt = c.DueAt,
-                    ReturnedAt = c.ReturnedAt,
-                    Note = c.Note,
-                    Equipment = new CheckoutEquipmentDto
-                    {
-                        Id = c.Equipment!.Id,
-                        Name = c.Equipment.Name,
-                        Category = c.Equipment.Category,
-                        ImageUrl = c.Equipment.ImageUrl,
-                        SerialNumber = c.Equipment.SerialNumber,
-                        Status = c.Equipment.Status
-                    },
-                    User = new CheckoutUserDto
-                    {
-                        Id = c.User!.Id,
-                        Name = c.User.Name,
-                        Email = c.User.Email
-                    }
-                })
-                .FirstOrDefaultAsync();
+            var checkout = await _checkoutService.GetByIdAsync(id);
 
             if (checkout == null)
             {
-                return NotFound(new { code = "checkout.notFound", message = "Assignment not found." });
+                return NotFound(ApiResponse.Create("checkout.notFound", "Assignment not found."));
             }
 
             return Ok(checkout);
@@ -99,89 +43,15 @@ namespace AssetManagement.Api.Controllers
 
         [HttpGet("user/{userId:int}")]
         [Authorize(Roles = UserRoles.Admin)]
-        public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetByUser(int userId)
+        public async Task<IActionResult> GetByUser(int userId)
         {
-            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
-
-            if (!userExists)
-            {
-                return NotFound(new { code = "user.notFound", message = "User not found." });
-            }
-
-            var checkouts = await _context.Checkouts
-                .Include(c => c.Equipment)
-                .Include(c => c.User)
-                .Where(c => c.UserId == userId)
-                .OrderByDescending(c => c.CheckedOutAt)
-                .Select(c => new CheckoutResponseDto
-                {
-                    Id = c.Id,
-                    CheckedOutAt = c.CheckedOutAt,
-                    DueAt = c.DueAt,
-                    ReturnedAt = c.ReturnedAt,
-                    Note = c.Note,
-                    Equipment = new CheckoutEquipmentDto
-                    {
-                        Id = c.Equipment!.Id,
-                        Name = c.Equipment.Name,
-                        Category = c.Equipment.Category,
-                        ImageUrl = c.Equipment.ImageUrl,
-                        SerialNumber = c.Equipment.SerialNumber,
-                        Status = c.Equipment.Status
-                    },
-                    User = new CheckoutUserDto
-                    {
-                        Id = c.User!.Id,
-                        Name = c.User.Name,
-                        Email = c.User.Email
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(checkouts);
+            return this.ToActionResult(await _checkoutService.GetByUserAsync(userId));
         }
 
         [HttpGet("my")]
-        public async Task<ActionResult<IEnumerable<CheckoutResponseDto>>> GetMyCheckouts()
+        public async Task<IActionResult> GetMyCheckouts()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized(new { code = "auth.invalidTokenUser", message = "The signed-in user could not be identified." });
-            }
-
-            var checkouts = await _context.Checkouts
-                .Include(c => c.Equipment)
-                .Include(c => c.User)
-                .Where(c => c.UserId == userId)
-                .OrderByDescending(c => c.CheckedOutAt)
-                .Select(c => new CheckoutResponseDto
-                {
-                    Id = c.Id,
-                    CheckedOutAt = c.CheckedOutAt,
-                    DueAt = c.DueAt,
-                    ReturnedAt = c.ReturnedAt,
-                    Note = c.Note,
-                    Equipment = new CheckoutEquipmentDto
-                    {
-                        Id = c.Equipment!.Id,
-                        Name = c.Equipment.Name,
-                        Category = c.Equipment.Category,
-                        ImageUrl = c.Equipment.ImageUrl,
-                        SerialNumber = c.Equipment.SerialNumber,
-                        Status = c.Equipment.Status
-                    },
-                    User = new CheckoutUserDto
-                    {
-                        Id = c.User!.Id,
-                        Name = c.User.Name,
-                        Email = c.User.Email
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(checkouts);
+            return this.ToActionResult(await _checkoutService.GetMyCheckoutsAsync(User));
         }
     }
 }

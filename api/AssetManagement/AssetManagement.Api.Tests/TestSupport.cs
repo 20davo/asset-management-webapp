@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AssetManagement.Api.Constants;
 using AssetManagement.Api.Controllers;
 using AssetManagement.Api.Data;
+using AssetManagement.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +51,25 @@ internal static class TestSupport
 
     public static EquipmentController CreateEquipmentController(AppDbContext context)
     {
-        return new EquipmentController(context, new TestWebHostEnvironment());
+        var imageService = new EquipmentImageService(new TestWebHostEnvironment());
+        var equipmentService = new EquipmentService(context, imageService);
+
+        return new EquipmentController(equipmentService, imageService);
+    }
+
+    public static UsersController CreateUsersController(AppDbContext context)
+    {
+        return new UsersController(new UserManagementService(context));
+    }
+
+    public static CheckoutController CreateCheckoutController(AppDbContext context)
+    {
+        return new CheckoutController(new CheckoutService(context));
+    }
+
+    public static AuthController CreateAuthController(AppDbContext context, IConfiguration configuration)
+    {
+        return new AuthController(new AuthService(context, configuration));
     }
 }
 

@@ -14,7 +14,7 @@ public class AuthControllerTests
         await using var context = TestSupport.CreateDbContext();
         var configuration = TestSupport.CreateConfiguration(
             new KeyValuePair<string, string?>("Registration:Enabled", "false"));
-        var controller = new AuthController(context, configuration);
+        var controller = TestSupport.CreateAuthController(context, configuration);
 
         var result = await controller.Register(new RegisterDto
         {
@@ -42,7 +42,7 @@ public class AuthControllerTests
 
         var configuration = TestSupport.CreateConfiguration(
             new KeyValuePair<string, string?>("Registration:Enabled", "true"));
-        var controller = new AuthController(context, configuration);
+        var controller = TestSupport.CreateAuthController(context, configuration);
 
         var result = await controller.Register(new RegisterDto
         {
